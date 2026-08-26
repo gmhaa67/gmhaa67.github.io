@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Mado and Mido's Shop - Products</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <a
+        href="index.html"
+        class="logo"
+    >
+        Mado and Mido's Shop 🛍️
+    </a>
+
+
+    <nav>
+
+        <a href="index.html">
+            Home
+        </a>
+
+        <a
+            href="products.html"
+            class="active-link"
+        >
+            Products
+        </a>
+
+    </nav>
+
+
+    <div class="header-right">
+
+        <button
+            class="theme-btn"
+            id="theme-toggle"
+            onclick="toggleTheme()"
+        >
+            🌙
+        </button>
+
+
+        <a
+            href="cart.html"
+            class="cart-icon"
+        >
+            Cart 🛒
+
+            <span id="cart-count">
+                0
+            </span>
+
+        </a>
+
+    </div>
+
+</header>
+
+
+
+<section class="hero">
+
+    <h1>
+        Welcome to Mado & Mido's Shop
+    </h1>
+
+    <p>
+        Explore elite electronics, lifestyle fits,
+        custom sneakers, gaming products, and plush toys.
+    </p>
+
+</section>
+
+
+
+<main class="layout-container">
+
+
+    <!-- PRODUCTS -->
+
+    <section class="products-section">
+
+        <h2>
+            Our Products
+        </h2>
+
+
+
+        <!-- CATEGORY MENU -->
+
+        <div class="category-menu">
+
+
+            <button
+                class="cat-btn"
+                onclick="filterCategory('all')"
+            >
+                All
+            </button>
+
+
+            <button
+                class="cat-btn"
+                onclick="filterCategory('electronics')"
+            >
+                Electronics
+            </button>
+
+
+            <button
+                class="cat-btn"
+                onclick="filterCategory('clothes')"
+            >
+                Clothes
+            </button>
+
+
+            <button
+                class="cat-btn"
+                onclick="filterCategory('shoes')"
+            >
+                Shoes
+            </button>
+
+
+            <button
+                class="cat-btn"
+                onclick="filterCategory('plush')"
+            >
+                Plush
+            </button>
+
+
+       <button
+                class="cat-btn"
+                onclick="filterCategory('gift cards')"
+            >
+                gift cards
+            </button>
+ <button
+                class="cat-btn"
+                onclick="filterCategory('food')"
+            >
+                food
+            </button>
+
+ <button
+                class="cat-btn"
+                onclick="filterCategory('cars')"
+            >
+                cars
+            </button>
+
+ <button
+                class="cat-btn"
+                onclick="filterCategory('custom jewelry')"
+            >
+                custom jewelry
+            </button>
+
+        </div>
+
+
+
+        <!-- PRODUCTS ARE LOADED BY JAVASCRIPT -->
+
+        <div
+            class="products-grid"
+            id="products-grid"
+        ></div>
+
+
+    </section>
+
+
+</main>
+
+
+
+<!-- YOUR JAVASCRIPT -->
+
+<script src="script.js"></script>
+
+
+</body>
+
+</html>

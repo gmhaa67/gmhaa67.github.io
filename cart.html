@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Mado & Mido's Shop - Cart</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <a href="index.html" class="logo">
+        Mado & Mido's Shop 🛍️
+    </a>
+
+    <nav>
+
+        <a href="index.html">
+            Home
+        </a>
+
+        <a href="products.html">
+            Products
+        </a>
+
+        <a href="track.html">
+            Track Package
+        </a>
+
+    </nav>
+
+
+    <div class="header-right">
+
+        <button
+            class="theme-btn"
+            id="theme-toggle"
+            onclick="toggleTheme()"
+        >
+            🌙
+        </button>
+
+
+        <div id="auth-area"></div>
+
+
+        <a
+            href="cart.html"
+            class="cart-icon"
+        >
+            Cart 🛒
+            <span id="cart-count">0</span>
+        </a>
+
+    </div>
+
+</header>
+
+
+<main class="cart-page">
+
+
+    <section class="cart-products">
+
+        <h1>
+            Your Shopping Cart 🛒
+        </h1>
+
+        <div
+            id="cart-items-wrapper"
+            class="cart-items"
+        ></div>
+
+
+        <button
+            class="clear-cart-btn"
+            onclick="clearEntireCart()"
+        >
+            Clear Cart
+        </button>
+
+    </section>
+
+
+
+    <aside class="order-summary">
+
+        <h2>
+            Order Summary
+        </h2>
+
+
+        <div class="delivery-section">
+
+            <label>
+                Delivery Method
+            </label>
+
+            <div class="delivery-buttons">
+
+                <button
+                    onclick="changeShipping(40)"
+                >
+                    Early
+                    <br>
+                    $40.00
+                </button>
+
+                <button
+                    onclick="changeShipping(0)"
+                >
+                    Late
+                    <br>
+                    Free
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="coupon-section">
+
+            <label>
+                Promo Code
+            </label>
+
+            <div class="coupon-row">
+
+                <input
+                    type="text"
+                    id="coupon-input"
+                    placeholder="MADO50"
+                >
+
+                <button
+                    onclick="applyCouponCode()"
+                >
+                    Apply
+                </button>
+
+            </div>
+
+            <p id="coupon-message"></p>
+
+        </div>
+
+
+        <div class="summary-row">
+
+            <span>
+                Subtotal:
+            </span>
+
+            <span id="summary-subtotal">
+                $0.00
+            </span>
+
+        </div>
+
+
+        <div
+            class="summary-row discount-row"
+            id="discount-row"
+        >
+
+            <span>
+                Discount (50%):
+            </span>
+
+            <span id="summary-discount">
+                -$0.00
+            </span>
+
+        </div>
+
+
+        <div class="summary-row">
+
+            <span>
+                Tax (12%):
+            </span>
+
+            <span id="summary-tax">
+                $0.00
+            </span>
+
+        </div>
+
+
+        <div class="summary-row">
+
+            <span>
+                Shipping:
+            </span>
+
+            <span id="summary-shipping">
+                $0.00
+            </span>
+
+        </div>
+
+
+        <div class="summary-total">
+
+            <span>
+                Total:
+            </span>
+
+            <span id="summary-total">
+                $0.00
+            </span>
+
+        </div>
+
+
+        <button
+            class="checkout-btn"
+            onclick="checkout()"
+        >
+            Proceed to Checkout 🚀
+        </button>
+
+    </aside>
+
+</main>
+
+
+<script src="script.js"></script>
+<script src="auth.js"></script>
+
+</body>
+</html>

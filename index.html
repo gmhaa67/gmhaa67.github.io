@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mado & Mido's Shop - Home</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <a href="index.html" class="logo">Mado & Mido's Shop 🛍️</a>
+
+    <nav>
+        <a href="index.html" class="active-link">Home</a>
+        <a href="products.html">Products</a>
+        <a href="track.html">Track Package</a>
+    </nav>
+
+    <div class="header-right">
+        <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+
+        <div id="auth-area"></div>
+
+        <a href="cart.html" class="cart-icon">
+            Cart 🛒 <span id="cart-count">0</span>
+        </a>
+    </div>
+</header>
+
+<section class="hero">
+    <h1>Welcome to Mado & Mido's Shop</h1>
+
+    <p>
+        Explore elite electronics, lifestyle fits,
+        custom sneakers, and rare plush toys.
+    </p>
+
+    <a href="products.html" class="cta-btn">
+        View All Products
+    </a>
+</section>
+
+<section class="home-section">
+
+    <h2>Why Shop With Us?</h2>
+
+    <div class="feature-grid">
+
+        <div class="feature-card">
+            <div>🛍️</div>
+            <h3>Awesome Products</h3>
+            <p>Electronics, clothes, shoes and rare items.</p>
+        </div>
+
+        <div class="feature-card">
+            <div>🚚</div>
+            <h3>Track Your Package</h3>
+            <p>Check the status of your order anytime.</p>
+        </div>
+
+        <div class="feature-card">
+            <div>🔐</div>
+            <h3>Member Shopping</h3>
+            <p>Create an account to add products and checkout.</p>
+        </div>
+
+    </div>
+
+</section>
+
+<script src="script.js"></script>
+<script src="auth.js"></script>
+
+</body>
+</html>

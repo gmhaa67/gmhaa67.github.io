@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Mado & Mido's Shop - Track Package</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <a href="index.html" class="logo">
+        Mado & Mido's Shop 🛍️
+    </a>
+
+
+    <nav>
+
+        <a href="index.html">
+            Home
+        </a>
+
+        <a href="products.html">
+            Products
+        </a>
+
+        <a
+            href="track.html"
+            class="active-link"
+        >
+            Track Package
+        </a>
+
+    </nav>
+
+
+    <div class="header-right">
+
+        <button
+            class="theme-btn"
+            id="theme-toggle"
+            onclick="toggleTheme()"
+        >
+            🌙
+        </button>
+
+
+        <div id="auth-area"></div>
+
+
+        <a
+            href="cart.html"
+            class="cart-icon"
+        >
+            Cart 🛒
+            <span id="cart-count">0</span>
+        </a>
+
+    </div>
+
+</header>
+
+
+<main class="tracking-page">
+
+    <div class="tracking-card">
+
+        <h1>
+            Track Your Package 📦
+        </h1>
+
+        <p>
+            Enter your order number to see your
+            package status.
+        </p>
+
+
+        <div class="tracking-input-row">
+
+            <input
+                type="text"
+                id="tracking-number"
+                placeholder="Example: MADO-123456"
+            >
+
+
+            <button
+                onclick="trackPackage()"
+            >
+                Track
+            </button>
+
+        </div>
+
+
+        <div
+            id="tracking-result"
+            class="tracking-result"
+        ></div>
+
+    </div>
+
+</main>
+
+
+<script>
+
+function trackPackage() {
+
+    const input =
+        document.getElementById(
+            "tracking-number"
+        );
+
+    const result =
+        document.getElementById(
+            "tracking-result"
+        );
+
+
+    const number =
+        input.value
+            .trim()
+            .toUpperCase();
+
+
+    if (!number) {
+
+        result.innerHTML = `
+
+            <div class="tracking-status">
+
+                <p style="color:#ff4757;">
+                    Please enter an order number.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    const savedOrder =
+        localStorage.getItem(
+            "lastOrderNumber"
+        );
+
+
+    if (
+        number === savedOrder
+    ) {
+
+        const status =
+            localStorage.getItem(
+                "orderStatus"
+            ) || "Processing";
+
+
+        result.innerHTML = `
+
+            <div class="tracking-status">
+
+                <h2>
+                    📦 Order Found!
+                </h2>
+
+                <p>
+                    Order Number:
+                    <strong>${number}</strong>
+                </p>
+
+                <span class="status-badge">
+                    ${status}
+                </span>
+
+                <p>
+                    Your order has been received
+                    and is being prepared.
+                </p>
+
+            </div>
+
+        `;
+
+    } else {
+
+        result.innerHTML = `
+
+            <div class="tracking-status">
+
+                <h2>
+                    ❌ Order Not Found
+                </h2>
+
+                <p>
+                    We couldn't find an order
+                    with that tracking number.
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+</script>
+
+
+<script src="script.js"></script>
+<script src="auth.js"></script>
+
+</body>
+</html>
