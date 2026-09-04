@@ -501,8 +501,8 @@ function signupUser() {
     }
 
 
-    const exists =
-        accounts.some(
+    const existingAccountIndex =
+        accounts.findIndex(
             function (account) {
 
                 return (
@@ -514,20 +514,7 @@ function signupUser() {
         );
 
 
-    if (exists) {
-
-        message.style.color =
-            "#ff4757";
-
-        message.textContent =
-            "That username already exists.";
-
-        return;
-
-    }
-
-
-    accounts.push({
+    const account = {
 
         username: username,
 
@@ -535,7 +522,18 @@ function signupUser() {
 
         password: password
 
-    });
+    };
+
+
+    if (existingAccountIndex >= 0) {
+
+        accounts[existingAccountIndex] = account;
+
+    } else {
+
+        accounts.push(account);
+
+    }
 
 
     localStorage.setItem(
