@@ -746,6 +746,10 @@ function logoutUser() {
 
     currentUser = null;
 
+    if (typeof resetAdminChanges === "function") {
+        resetAdminChanges();
+    }
+
 
     localStorage.removeItem(
         "currentUser"
@@ -866,11 +870,24 @@ function updateAuthArea() {
 
     if (currentUser) {
 
+        const adminButton = isAdminAccount()
+            ? `
+                <button
+                    class="admin-btn"
+                    onclick="openAdminPanel()"
+                >
+                    Admin Panel
+                </button>
+            `
+            : "";
+
         area.innerHTML = `
 
             <span class="welcome-user">
                 👋 ${currentUser.username}
             </span>
+
+            ${adminButton}
 
             <button
                 class="logout-btn"
@@ -896,4 +913,377 @@ function updateAuthArea() {
 
     }
 
+}
+
+
+// ============================================================
+// TEMPORARY ADMIN PANEL
+// ============================================================
+
+function isAdminAccount() {
+
+    if (!currentUser) {
+        return false;
+    }
+
+    try {
+
+        const accounts =
+            JSON.parse(localStorage.getItem("accounts")) || [];
+
+        return accounts.some(function (account) {
+            const username = account.username.toLowerCase();
+
+            return username === currentUser.username.toLowerCase() &&
+                ((username === "mido-t7" &&
+                    account.password === "midoismybestfriend") ||
+                    (username === "mado67alya" &&
+                        account.password === "ilovealyashemywife123"));
+        });
+
+    } catch (error) {
+        return false;
+    }
+}
+
+
+function openAdminPanel() {
+
+    if (!isAdminAccount()) return;
+
+    const panelPassword =
+        prompt("Type panel password");
+
+    if (panelPassword !== "6767616193") {
+        alert("Incorrect panel password.");
+        return;
+    }
+
+    let panel = document.getElementById("admin-panel");
+
+    if (!panel) {
+
+        panel = document.createElement("div");
+        panel.id = "admin-panel";
+        document.body.appendChild(panel);
+
+    }
+
+    renderAdminPanel(panel);
+}
+
+
+function renderAdminPanel(panel) {
+
+    const logoText = getAdminText(".logo", "Mado & Mido's Shop");
+    const heroTitle = getAdminText(".hero h1", "");
+    const heroDescription = getAdminText(".hero p", "");
+    const heroButton = getAdminText(".hero .cta-btn", "");
+
+    const productRows = typeof products === "undefined"
+        ? "<p>Product controls are unavailable on this page.</p>"
+        : products.map(function (product, index) {
+            return `
+                <label class="admin-product-row">
+                    <input
+                        type="text"
+                        value="${escapeAdminValue(product.title)}"
+                        data-product-title-index="${index}"
+                    >
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value="${product.price}"
+                        data-product-index="${index}"
+                    >
+                </label>
+            `;
+        }).join("");
+
+    panel.innerHTML = `
+        <div class="admin-panel-card">
+            <button class="admin-close-btn" onclick="closeAdminPanel()">&times;</button>
+            <h2>Welcome Admin</h2>
+            <p class="admin-note">Changes only last until this page is reloaded.</p>
+
+            <h3>Site names and text</h3>
+            <div class="admin-text-controls">
+                <label>
+                    Shop name
+                    <input type="text" id="admin-logo-text" value="${escapeAdminValue(logoText)}">
+                </label>
+                <label>
+                    Hero title
+                    <input type="text" id="admin-hero-title" value="${escapeAdminValue(heroTitle)}">
+                </label>
+                <label>
+                    Hero description
+                    <textarea id="admin-hero-description">${escapeAdminText(heroDescription)}</textarea>
+                </label>
+                <label>
+                    Hero button
+                    <input type="text" id="admin-hero-button" value="${escapeAdminValue(heroButton)}">
+                </label>
+            </div>
+
+            <h3>Product prices</h3>
+            <div class="admin-product-list">${productRows}</div>
+
+            <button
+                class="admin-change-colors-btn"
+                onclick="toggleAdminColorControls()"
+            >
+                Change Colors
+            </button>
+
+            <div class="admin-color-controls" id="admin-color-controls">
+                <label>
+                    Accent color
+                    <input
+                        type="color"
+                        id="admin-accent-color"
+                        value="#6c5ce7"
+                        oninput="previewAdminColors()"
+                    >
+                </label>
+                <label>
+                    Page color
+                    <input
+                        type="color"
+                        id="admin-page-color"
+                        value="#f8f9fd"
+                        oninput="previewAdminColors()"
+                    >
+                </label>
+            </div>
+
+            <h3>Package controls</h3>
+            <div class="admin-tracking-controls">
+                <input type="text" id="admin-tracking-code" placeholder="MADO-123456">
+                <button onclick="createAdminTrackingCode()">Create Test Code</button>
+                <button onclick="setAdminTrackingStage(0)">Getting Ready</button>
+                <button onclick="setAdminTrackingStage(1)">Flying</button>
+                <button onclick="setAdminTrackingStage(2)">Order Here</button>
+                <button class="admin-reset-btn" onclick="resetAdminTracking()">Reset Package</button>
+            </div>
+
+            <div class="admin-actions">
+                <button onclick="applyAdminChanges()">Apply Changes</button>
+                <button class="admin-reset-btn" onclick="resetAdminChanges()">Reset</button>
+            </div>
+        </div>
+    `;
+
+    panel.style.display = "flex";
+}
+
+
+function escapeAdminValue(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+
+function escapeAdminText(value) {
+
+    return escapeAdminValue(value).replace(/'/g, "&#39;");
+}
+
+
+function getAdminText(selector, fallback) {
+
+    const element = document.querySelector(selector);
+
+    return element ? element.textContent.trim() : fallback;
+}
+
+
+function setAdminText(selector, value) {
+
+    document.querySelectorAll(selector).forEach(function (element) {
+
+        if (element.dataset.adminOriginalText === undefined) {
+            element.dataset.adminOriginalText = element.textContent;
+        }
+
+        element.textContent = value;
+    });
+}
+
+
+function applyAdminChanges() {
+
+    if (typeof products !== "undefined") {
+
+        document.querySelectorAll("[data-product-title-index]").forEach(function (input) {
+
+            const product = products[Number(input.dataset.productTitleIndex)];
+
+            if (product && product.originalTitle === undefined) {
+                product.originalTitle = product.title;
+            }
+
+            if (product) {
+                product.title = input.value.trim() || product.title;
+            }
+        });
+
+        document.querySelectorAll("[data-product-index]").forEach(function (input) {
+
+            const product = products[Number(input.dataset.productIndex)];
+
+            if (product && input.value !== "") {
+                if (product.originalPrice === undefined) {
+                    product.originalPrice = product.price;
+                }
+
+                product.price = Number(input.value);
+            }
+        });
+
+        if (typeof renderProducts === "function") {
+            renderProducts(products);
+        }
+    }
+
+    const logoText = document.getElementById("admin-logo-text");
+    const heroTitle = document.getElementById("admin-hero-title");
+    const heroDescription = document.getElementById("admin-hero-description");
+    const heroButton = document.getElementById("admin-hero-button");
+
+    if (logoText) setAdminText(".logo", logoText.value.trim());
+    if (heroTitle) setAdminText(".hero h1", heroTitle.value.trim());
+    if (heroDescription) setAdminText(".hero p", heroDescription.value.trim());
+    if (heroButton) setAdminText(".hero .cta-btn", heroButton.value.trim());
+
+    const accentColor = document.getElementById("admin-accent-color");
+    const pageColor = document.getElementById("admin-page-color");
+
+    if (accentColor) {
+        document.body.style.setProperty("--accent-color", accentColor.value);
+    }
+
+    if (pageColor) {
+        document.body.style.setProperty("--bg-color", pageColor.value);
+    }
+
+    alert("Admin changes applied for this session.");
+}
+
+
+function resetAdminChanges() {
+
+    document.body.style.removeProperty("--accent-color");
+    document.body.style.removeProperty("--bg-color");
+
+    if (typeof products !== "undefined") {
+
+        products.forEach(function (product) {
+
+            if (product.originalTitle !== undefined) {
+                product.title = product.originalTitle;
+                delete product.originalTitle;
+            }
+
+            if (product.originalPrice !== undefined) {
+                product.price = product.originalPrice;
+                delete product.originalPrice;
+            }
+        });
+
+        if (typeof renderProducts === "function") {
+            renderProducts(products);
+        }
+    }
+
+    document.querySelectorAll("[data-admin-original-text]").forEach(function (element) {
+        element.textContent = element.dataset.adminOriginalText;
+        delete element.dataset.adminOriginalText;
+    });
+
+    closeAdminPanel();
+}
+
+
+function closeAdminPanel() {
+
+    const panel = document.getElementById("admin-panel");
+
+    if (panel) {
+        panel.remove();
+    }
+}
+
+
+function createAdminTrackingCode() {
+
+    const input = document.getElementById("admin-tracking-code");
+    const code = input && input.value.trim().toUpperCase()
+        ? input.value.trim().toUpperCase()
+        : "MADO-" + Math.floor(100000 + Math.random() * 900000);
+
+    localStorage.setItem("lastOrderNumber", code);
+    localStorage.setItem("orderStartedAt", String(Date.now()));
+    localStorage.setItem("orderStage", "0");
+    localStorage.setItem("orderStatus", "Getting order ready");
+
+    alert("Test tracking code created: " + code);
+}
+
+
+function setAdminTrackingStage(stage) {
+
+    if (!localStorage.getItem("lastOrderNumber")) {
+        createAdminTrackingCode();
+    }
+
+    localStorage.setItem("orderStage", String(stage));
+    localStorage.setItem(
+        "orderStatus",
+        ["Getting order ready", "Flying to your country", "Order here"][stage]
+    );
+    localStorage.setItem("orderStartedAt", String(Date.now()));
+
+    alert("Package stage updated.");
+}
+
+
+function resetAdminTracking() {
+
+    localStorage.removeItem("lastOrderNumber");
+    localStorage.removeItem("orderStartedAt");
+    localStorage.removeItem("orderStage");
+    localStorage.removeItem("orderStatus");
+
+    alert("Package tracking was reset.");
+}
+
+
+function toggleAdminColorControls() {
+
+    const controls = document.getElementById("admin-color-controls");
+
+    if (controls) {
+        controls.classList.toggle("visible");
+    }
+}
+
+
+function previewAdminColors() {
+
+    const accentColor = document.getElementById("admin-accent-color");
+    const pageColor = document.getElementById("admin-page-color");
+
+    if (accentColor) {
+        document.body.style.setProperty("--accent-color", accentColor.value);
+    }
+
+    if (pageColor) {
+        document.body.style.setProperty("--bg-color", pageColor.value);
+    }
 }

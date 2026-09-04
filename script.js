@@ -113,7 +113,7 @@ const products = [
     {
         id: 12,
         title: "Alya Plush",
-        price: 100000000000,
+        price: 100000,
         category: "plush",
         img: "plush.png",
         fallbacks: ["plush.png.png", "plush.png.jpg", "plush.jpg"]
@@ -387,10 +387,9 @@ const products = [
         "ruby1.png",
         "ruby1.png.png",
         "ruby1.png.jpg",
-        "ruby1.jpg",
+        "ruby1.jpg"
     ]
 },
-
 {
     id: 35,
     title: "2 karart ruby women custom ring",
@@ -401,7 +400,7 @@ const products = [
         "ruby2.png",
         "ruby2.png.png",
         "ruby2.png.jpg",
-        "ruby2.jpg",
+        "ruby2.jpg"
     ]
 },
 {
@@ -414,9 +413,9 @@ const products = [
         "ruby3.png",
         "ruby3.png.png",
         "ruby3.png.jpg",
-        "ruby3.jpg",
+        "ruby3.jpg"
     ]
-},
+}
 ];
 
 
@@ -443,6 +442,18 @@ try {
 
 let selectedShipping = 0;
 let discountPercentage = 0;
+const appliedCouponCodes = new Set();
+
+const couponDiscounts = {
+    MADO100: 0.50,
+    MIDO67: 0.50,
+    ALYA123: 0.50,
+    TANJIROANDTOOTANAGI123: 0.50,
+    MADO50: 0.50,
+    MIDO50: 0.50,
+    WELCOME10: 0.10,
+    SHOP10: 0.10
+};
 
 
 // =====================================================
@@ -613,6 +624,10 @@ function filterCategory(category) {
 // =====================================================
 
 function addToCart(id) {
+
+    if (typeof requireLoginForCart === "function" && !requireLoginForCart()) {
+        return;
+    }
 
     const product =
         products.find(function (p) {
@@ -835,19 +850,21 @@ function applyCouponCode() {
     const code =
         input.value.trim().toUpperCase();
 
-    if (
-        code === "MADO50" ||
-        code === "MIDO67" ||
-        code === "FAM89"
-    ) {
+    const couponValue = couponDiscounts[code];
 
-        discountPercentage = 0.50;
+    if (couponValue !== undefined && !appliedCouponCodes.has(code)) {
+
+        appliedCouponCodes.add(code);
+        discountPercentage = Math.min(
+            1,
+            discountPercentage + couponValue
+        );
 
         message.textContent =
-            "50% Discount Applied!";
+            `${code} applied. Total discount: ${discountPercentage * 100}%`;
 
         message.style.color =
-            "#2ecc71";
+            "#00ddff";
 
         const row =
             document.getElementById("discount-row");
@@ -856,9 +873,22 @@ function applyCouponCode() {
             row.style.display = "flex";
         }
 
-    } else {
+        const label = row ? row.querySelector("span") : null;
 
-        discountPercentage = 0;
+        if (label) {
+            label.textContent =
+                `Discount (${discountPercentage * 100}%):`;
+        }
+
+    } else if (appliedCouponCodes.has(code)) {
+
+        message.textContent =
+            "That coupon has already been applied.";
+
+        message.style.color =
+            "#ffb142";
+
+    } else {
 
         message.textContent =
             "Invalid Coupon Code.";
@@ -869,12 +899,13 @@ function applyCouponCode() {
         const row =
             document.getElementById("discount-row");
 
-        if (row) {
+        if (row && appliedCouponCodes.size === 0) {
             row.style.display = "none";
         }
     }
 
     calculateTotals();
+
 }
 
 
@@ -1013,8 +1044,17 @@ function triggerCheckoutAlert() {
         return;
     }
 
+    const orderNumber =
+        "MADO-" + Math.floor(100000 + Math.random() * 900000);
+
+    localStorage.setItem("lastOrderNumber", orderNumber);
+    localStorage.setItem("orderStatus", "Getting order ready");
+    localStorage.setItem("orderStartedAt", String(Date.now()));
+    localStorage.setItem("orderStage", "0");
+
     alert(
-        "🚀 Order processed successfully!"
+        "🚀 Order processed successfully! Your tracking code is " +
+        orderNumber
     );
 
     clearEntireCart();
@@ -1023,6 +1063,103 @@ function triggerCheckoutAlert() {
 
 function checkout() {
 
+    if (typeof requireLoginForCheckout === "function" && !requireLoginForCheckout()) {
+        return;
+    }
+
     triggerCheckoutAlert();
 
+}
+
+
+// =====================================================
+// PACKAGE TRACKING
+// =====================================================
+
+const trackingStages = [
+    { name: "Getting order ready", duration: 30 },
+    { name: "Flying to your country", duration: 60 },
+    { name: "Order here", duration: 0 }
+];
+
+let trackingTimer = null;
+
+function getTrackingProgress() {
+
+    const startedAt = Number(localStorage.getItem("orderStartedAt"));
+    const forcedStage = Number(localStorage.getItem("orderStage"));
+
+    if (!startedAt || Number.isFinite(forcedStage) && forcedStage > 0) {
+        return {
+            stage: Math.max(0, Math.min(2, forcedStage || 0)),
+            progress: forcedStage >= 2 ? 100 : forcedStage === 1 ? 33 : 0
+        };
+    }
+
+    const elapsed = (Date.now() - startedAt) / 1000;
+
+    if (elapsed < trackingStages[0].duration) {
+        return { stage: 0, progress: 0 };
+    }
+
+    if (elapsed < trackingStages[0].duration + trackingStages[1].duration) {
+        return { stage: 1, progress: 33 };
+    }
+
+    return { stage: 2, progress: 100 };
+}
+
+function renderTrackingResult() {
+
+    const input = document.getElementById("tracking-number");
+    const result = document.getElementById("tracking-result");
+
+    if (!input || !result) return;
+
+    const number = input.value.trim().toUpperCase();
+    const savedOrder = localStorage.getItem("lastOrderNumber");
+
+    if (!number) {
+        result.innerHTML = "<p class=\"tracking-error\">Please enter an order number.</p>";
+        return;
+    }
+
+    if (number !== savedOrder) {
+        result.innerHTML = `
+            <div class="tracking-status">
+                <h2>Order Not Found</h2>
+                <p>We couldn't find an order with that tracking number.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const tracking = getTrackingProgress();
+    const status = trackingStages[tracking.stage].name;
+
+    result.innerHTML = `
+        <div class="tracking-status">
+            <h2>Order Found!</h2>
+            <p>Order Number: <strong>${number}</strong></p>
+            <div class="tracking-progress" aria-label="Package progress">
+                <div class="tracking-progress-fill" style="width:${tracking.progress}%"></div>
+            </div>
+            <div class="tracking-stages">
+                ${trackingStages.map(function (stage, index) {
+                    return `<span class="${index <= tracking.stage ? "complete" : ""}">${stage.name}</span>`;
+                }).join("")}
+            </div>
+            <span class="status-badge">${status}</span>
+        </div>
+    `;
+
+    if (trackingTimer) clearTimeout(trackingTimer);
+
+    if (tracking.stage < 2) {
+        trackingTimer = setTimeout(renderTrackingResult, 1000);
+    }
+}
+
+function trackPackage() {
+    renderTrackingResult();
 }
