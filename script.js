@@ -415,6 +415,19 @@ const products = [
         "ruby3.png.jpg",
         "ruby3.jpg"
     ]
+},
+{
+    id: 37,
+    title: "Shopping Gift Card",
+    price: 50,
+    category: "gift cards",
+    img: "shopping.png",
+    fallbacks: [
+        "shopping.png",
+        "shopping.png.png",
+        "shopping.png.jpg",
+        "shopping.jpg"
+    ]
 }
 ];
 

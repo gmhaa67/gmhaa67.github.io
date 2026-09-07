@@ -1224,7 +1224,7 @@ nav a.active-link {
 
     display: grid;
 
-    grid-template-columns: minmax(0, 1fr) 130px;
+    grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, 0.8fr) minmax(0, 1fr);
 
     align-items: center;
 
@@ -1266,6 +1266,34 @@ nav a.active-link {
 .admin-color-controls.visible {
 
     display: flex;
+
+}
+
+
+.admin-appearance-controls {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    align-items: center;
+
+}
+
+
+.admin-appearance-controls select {
+
+    min-width: 100px;
+
+    padding: 8px;
+
+    border: 1px solid var(--border-color);
+
+    border-radius: 7px;
+
+    background: var(--bg-color);
+
+    color: var(--text-color);
 
 }
 
@@ -1375,6 +1403,12 @@ nav a.active-link {
 
     .admin-product-row {
         grid-template-columns: 1fr 105px;
+
+        gap: 6px;
+    }
+
+    .admin-product-row input:nth-child(n + 3) {
+        grid-column: 1 / -1;
     }
 
     .admin-color-controls {

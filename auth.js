@@ -17,6 +17,8 @@ document.addEventListener(
 
         loadCurrentUser();
 
+        applyAdminSiteSettings();
+
         createAuthScreen();
 
         updateAuthArea();
@@ -918,6 +920,70 @@ function updateAuthArea() {
 // TEMPORARY ADMIN PANEL
 // ============================================================
 
+function getAdminSettings() {
+
+    try {
+        return JSON.parse(localStorage.getItem("adminSettings")) || {};
+    } catch (error) {
+        return {};
+    }
+}
+
+
+function saveAdminSettings(settings) {
+    localStorage.setItem("adminSettings", JSON.stringify(settings));
+}
+
+
+function applyAdminSiteSettings() {
+
+    const settings = getAdminSettings();
+
+    if (settings.theme === "dark") {
+        document.body.classList.add("dark-theme");
+    }
+
+    if (settings.accentColor) {
+        document.body.style.setProperty("--accent-color", settings.accentColor);
+    }
+
+    if (settings.pageColor) {
+        document.body.style.setProperty("--bg-color", settings.pageColor);
+    }
+
+    if (settings.textColor) {
+        document.body.style.setProperty("--text-color", settings.textColor);
+    }
+
+    if (settings.cardColor) {
+        document.body.style.setProperty("--card-bg", settings.cardColor);
+    }
+
+    Object.keys(settings.text || {}).forEach(function (selector) {
+        setAdminText(selector, settings.text[selector]);
+    });
+
+    if (settings.nav) {
+        document.querySelectorAll("header nav a").forEach(function (link, index) {
+            const item = settings.nav[index];
+            if (!item) return;
+            link.textContent = item.label || link.textContent;
+            if (item.href) link.href = item.href;
+        });
+    }
+
+    if (typeof products !== "undefined" && Array.isArray(settings.products)) {
+        settings.products.forEach(function (savedProduct, index) {
+            const product = products[index];
+            if (!product || !savedProduct) return;
+            product.title = savedProduct.title || product.title;
+            product.price = Number(savedProduct.price) >= 0 ? Number(savedProduct.price) : product.price;
+            product.category = savedProduct.category || product.category;
+            product.img = savedProduct.img || product.img;
+        });
+    }
+}
+
 function isAdminAccount() {
 
     if (!currentUser) {
@@ -995,6 +1061,18 @@ function renderAdminPanel(panel) {
                         value="${product.price}"
                         data-product-index="${index}"
                     >
+                    <input
+                        type="text"
+                        value="${escapeAdminValue(product.category)}"
+                        data-product-category-index="${index}"
+                        placeholder="Category"
+                    >
+                    <input
+                        type="text"
+                        value="${escapeAdminValue(product.img)}"
+                        data-product-image-index="${index}"
+                        placeholder="Image file"
+                    >
                 </label>
             `;
         }).join("");
@@ -1003,7 +1081,7 @@ function renderAdminPanel(panel) {
         <div class="admin-panel-card">
             <button class="admin-close-btn" onclick="closeAdminPanel()">&times;</button>
             <h2>Welcome Admin</h2>
-            <p class="admin-note">Changes only last until this page is reloaded.</p>
+            <p class="admin-note">Changes are saved in this browser and apply across the shop.</p>
 
             <h3>Site names and text</h3>
             <div class="admin-text-controls">
@@ -1025,6 +1103,38 @@ function renderAdminPanel(panel) {
                 </label>
             </div>
 
+            <h3>Navigation</h3>
+            <div class="admin-text-controls admin-nav-controls">
+                ${Array.from(document.querySelectorAll("header nav a")).map(function (link, index) {
+                    const settings = getAdminSettings().nav || [];
+                    const item = settings[index] || {};
+                    return `
+                        <label>
+                            Link ${index + 1} label
+                            <input type="text" value="${escapeAdminValue(item.label || link.textContent.trim())}" data-nav-label-index="${index}">
+                        </label>
+                        <label>
+                            Link ${index + 1} page
+                            <input type="text" value="${escapeAdminValue(item.href || link.getAttribute("href") || "")}" data-nav-href-index="${index}">
+                        </label>
+                    `;
+                }).join("")}
+            </div>
+
+            <h3>Appearance</h3>
+            <div class="admin-color-controls visible admin-appearance-controls">
+                <label>Theme
+                    <select id="admin-theme">
+                        <option value="light" ${getAdminSettings().theme !== "dark" ? "selected" : ""}>Light</option>
+                        <option value="dark" ${getAdminSettings().theme === "dark" ? "selected" : ""}>Dark</option>
+                    </select>
+                </label>
+                <label>Accent <input type="color" id="admin-accent-color" value="${getAdminSettings().accentColor || "#6c5ce7"}" oninput="previewAdminColors()"></label>
+                <label>Page <input type="color" id="admin-page-color" value="${getAdminSettings().pageColor || "#f8f9fd"}" oninput="previewAdminColors()"></label>
+                <label>Text <input type="color" id="admin-text-color" value="${getAdminSettings().textColor || "#1f2937"}" oninput="previewAdminColors()"></label>
+                <label>Cards <input type="color" id="admin-card-color" value="${getAdminSettings().cardColor || "#ffffff"}" oninput="previewAdminColors()"></label>
+            </div>
+
             <h3>Product prices</h3>
             <div class="admin-product-list">${productRows}</div>
 
@@ -1034,27 +1144,6 @@ function renderAdminPanel(panel) {
             >
                 Change Colors
             </button>
-
-            <div class="admin-color-controls" id="admin-color-controls">
-                <label>
-                    Accent color
-                    <input
-                        type="color"
-                        id="admin-accent-color"
-                        value="#6c5ce7"
-                        oninput="previewAdminColors()"
-                    >
-                </label>
-                <label>
-                    Page color
-                    <input
-                        type="color"
-                        id="admin-page-color"
-                        value="#f8f9fd"
-                        oninput="previewAdminColors()"
-                    >
-                </label>
-            </div>
 
             <h3>Package controls</h3>
             <div class="admin-tracking-controls">
@@ -1116,6 +1205,24 @@ function setAdminText(selector, value) {
 
 function applyAdminChanges() {
 
+    const settings = getAdminSettings();
+    settings.text = {
+        ".logo": document.getElementById("admin-logo-text")?.value.trim() || "Mado & Mido's Shop",
+        ".hero h1": document.getElementById("admin-hero-title")?.value.trim() || "",
+        ".hero p": document.getElementById("admin-hero-description")?.value.trim() || "",
+        ".hero .cta-btn": document.getElementById("admin-hero-button")?.value.trim() || ""
+    };
+    settings.nav = Array.from(document.querySelectorAll("[data-nav-label-index]")).map(function (input, index) {
+        const hrefInput = document.querySelector(`[data-nav-href-index="${index}"]`);
+        return { label: input.value.trim(), href: hrefInput ? hrefInput.value.trim() : "" };
+    });
+    settings.theme = document.getElementById("admin-theme")?.value || "light";
+    settings.accentColor = document.getElementById("admin-accent-color")?.value;
+    settings.pageColor = document.getElementById("admin-page-color")?.value;
+    settings.textColor = document.getElementById("admin-text-color")?.value;
+    settings.cardColor = document.getElementById("admin-card-color")?.value;
+    settings.products = [];
+
     if (typeof products !== "undefined") {
 
         document.querySelectorAll("[data-product-title-index]").forEach(function (input) {
@@ -1144,6 +1251,25 @@ function applyAdminChanges() {
             }
         });
 
+        document.querySelectorAll("[data-product-category-index]").forEach(function (input) {
+            const product = products[Number(input.dataset.productCategoryIndex)];
+            if (product && input.value.trim()) product.category = input.value.trim();
+        });
+
+        document.querySelectorAll("[data-product-image-index]").forEach(function (input) {
+            const product = products[Number(input.dataset.productImageIndex)];
+            if (product && input.value.trim()) product.img = input.value.trim();
+        });
+
+        settings.products = products.map(function (product) {
+            return {
+                title: product.title,
+                price: product.price,
+                category: product.category,
+                img: product.img
+            };
+        });
+
         if (typeof renderProducts === "function") {
             renderProducts(products);
         }
@@ -1159,6 +1285,15 @@ function applyAdminChanges() {
     if (heroDescription) setAdminText(".hero p", heroDescription.value.trim());
     if (heroButton) setAdminText(".hero .cta-btn", heroButton.value.trim());
 
+    document.querySelectorAll("[data-nav-label-index]").forEach(function (input, index) {
+        const link = document.querySelectorAll("header nav a")[index];
+        const hrefInput = document.querySelector(`[data-nav-href-index="${index}"]`);
+        if (link) {
+            link.textContent = input.value.trim() || link.textContent;
+            if (hrefInput && hrefInput.value.trim()) link.href = hrefInput.value.trim();
+        }
+    });
+
     const accentColor = document.getElementById("admin-accent-color");
     const pageColor = document.getElementById("admin-page-color");
 
@@ -1170,11 +1305,31 @@ function applyAdminChanges() {
         document.body.style.setProperty("--bg-color", pageColor.value);
     }
 
+    if (settings.textColor) {
+        document.body.style.setProperty("--text-color", settings.textColor);
+    }
+
+    if (settings.cardColor) {
+        document.body.style.setProperty("--card-bg", settings.cardColor);
+    }
+
+    if (settings.theme === "dark") {
+        document.body.classList.add("dark-theme");
+    } else {
+        document.body.classList.remove("dark-theme");
+    }
+
+    saveAdminSettings(settings);
+
     alert("Admin changes applied for this session.");
 }
 
 
 function resetAdminChanges() {
+
+    localStorage.removeItem("adminSettings");
+    window.location.reload();
+    return;
 
     document.body.style.removeProperty("--accent-color");
     document.body.style.removeProperty("--bg-color");
@@ -1283,5 +1438,16 @@ function previewAdminColors() {
 
     if (pageColor) {
         document.body.style.setProperty("--bg-color", pageColor.value);
+    }
+
+    const textColor = document.getElementById("admin-text-color");
+    const cardColor = document.getElementById("admin-card-color");
+
+    if (textColor) {
+        document.body.style.setProperty("--text-color", textColor.value);
+    }
+
+    if (cardColor) {
+        document.body.style.setProperty("--card-bg", cardColor.value);
     }
 }
