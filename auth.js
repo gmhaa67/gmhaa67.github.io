@@ -980,6 +980,9 @@ function applyAdminSiteSettings() {
             product.price = Number(savedProduct.price) >= 0 ? Number(savedProduct.price) : product.price;
             product.category = savedProduct.category || product.category;
             product.img = savedProduct.img || product.img;
+            if (Array.isArray(savedProduct.fallbacks) && savedProduct.fallbacks.length) {
+                product.fallbacks = savedProduct.fallbacks;
+            }
         });
     }
 }
@@ -1049,6 +1052,12 @@ function renderAdminPanel(panel) {
         : products.map(function (product, index) {
             return `
                 <label class="admin-product-row">
+                    <img
+                        class="admin-product-preview"
+                        src="${escapeAdminValue(product.img)}"
+                        alt=""
+                        data-product-preview="${index}"
+                    >
                     <input
                         type="text"
                         value="${escapeAdminValue(product.title)}"
@@ -1071,7 +1080,14 @@ function renderAdminPanel(panel) {
                         type="text"
                         value="${escapeAdminValue(product.img)}"
                         data-product-image-index="${index}"
-                        placeholder="Image file"
+                        placeholder="Photo file or URL"
+                        oninput="previewAdminProductImage(this)"
+                    >
+                    <input
+                        type="text"
+                        value="${escapeAdminValue((product.fallbacks || []).join(", "))}"
+                        data-product-fallback-index="${index}"
+                        placeholder="Fallback photos, comma separated"
                     >
                 </label>
             `;
@@ -1135,7 +1151,7 @@ function renderAdminPanel(panel) {
                 <label>Cards <input type="color" id="admin-card-color" value="${getAdminSettings().cardColor || "#ffffff"}" oninput="previewAdminColors()"></label>
             </div>
 
-            <h3>Product prices</h3>
+            <h3>Products, prices and photos</h3>
             <div class="admin-product-list">${productRows}</div>
 
             <button
@@ -1261,12 +1277,21 @@ function applyAdminChanges() {
             if (product && input.value.trim()) product.img = input.value.trim();
         });
 
+        document.querySelectorAll("[data-product-fallback-index]").forEach(function (input) {
+            const product = products[Number(input.dataset.productFallbackIndex)];
+            const fallbacks = input.value.split(",").map(function (item) {
+                return item.trim();
+            }).filter(Boolean);
+            if (product && fallbacks.length) product.fallbacks = fallbacks;
+        });
+
         settings.products = products.map(function (product) {
             return {
                 title: product.title,
                 price: product.price,
                 category: product.category,
-                img: product.img
+                img: product.img,
+                fallbacks: product.fallbacks || []
             };
         });
 
@@ -1321,7 +1346,7 @@ function applyAdminChanges() {
 
     saveAdminSettings(settings);
 
-    alert("Admin changes applied for this session.");
+    alert("Admin changes saved in this browser and applied across the shop.");
 }
 
 
@@ -1449,5 +1474,16 @@ function previewAdminColors() {
 
     if (cardColor) {
         document.body.style.setProperty("--card-bg", cardColor.value);
+    }
+}
+
+
+function previewAdminProductImage(input) {
+
+    const index = Number(input.dataset.productImageIndex);
+    const preview = document.querySelector(`[data-product-preview="${index}"]`);
+
+    if (preview && input.value.trim()) {
+        preview.src = input.value.trim();
     }
 }
