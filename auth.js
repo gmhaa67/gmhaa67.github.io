@@ -6,6 +6,9 @@
 
 let currentUser = null;
 
+const SUPABASE_URL = "https://obmqizlwaoknqcbjpkex.supabase.co";
+const SUPABASE_KEY = "sb_publishable_J9ssrbXkA2Jp2I9NlvPzsQ_wjkfFhv4";
+
 
 // ============================================================
 // START
@@ -18,6 +21,8 @@ document.addEventListener(
         loadCurrentUser();
 
         applyAdminSiteSettings();
+
+        loadSharedAdminSettings();
 
         createAuthScreen();
 
@@ -935,6 +940,65 @@ function saveAdminSettings(settings) {
 }
 
 
+async function loadSharedAdminSettings() {
+
+    try {
+        const response = await fetch(
+            SUPABASE_URL + "/rest/v1/site_settings?id=eq.1&select=settings",
+            {
+                headers: {
+                    apikey: SUPABASE_KEY,
+                    Authorization: "Bearer " + SUPABASE_KEY
+                }
+            }
+        );
+
+        if (!response.ok) return;
+
+        const rows = await response.json();
+        const sharedSettings = rows[0] && rows[0].settings;
+
+        if (sharedSettings && typeof sharedSettings === "object") {
+            saveAdminSettings(sharedSettings);
+            applyAdminSiteSettings();
+            updateAuthArea();
+        }
+    } catch (error) {
+        console.warn("Shared settings are unavailable.", error);
+    }
+}
+
+
+async function saveSharedAdminSettings(settings) {
+
+    try {
+        const response = await fetch(SUPABASE_URL + "/rest/v1/site_settings", {
+            method: "POST",
+            headers: {
+                apikey: SUPABASE_KEY,
+                Authorization: "Bearer " + SUPABASE_KEY,
+                "Content-Type": "application/json",
+                Prefer: "resolution=merge-duplicates,return=minimal"
+            },
+            body: JSON.stringify({
+                id: 1,
+                settings: settings,
+                updated_at: new Date().toISOString()
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("Supabase returned " + response.status);
+        }
+
+        return true;
+    } catch (error) {
+        console.warn("Shared settings could not be saved.", error);
+        return false;
+    }
+}
+
+
 function applyAdminSiteSettings() {
 
     const settings = getAdminSettings();
@@ -1345,8 +1409,11 @@ function applyAdminChanges() {
     }
 
     saveAdminSettings(settings);
-
-    alert("Admin changes saved in this browser and applied across the shop.");
+    saveSharedAdminSettings(settings).then(function (saved) {
+        alert(saved
+            ? "Admin changes saved for everyone."
+            : "Saved on this device, but the shared database is not ready yet.");
+    });
 }
 
 
