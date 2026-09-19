@@ -558,6 +558,19 @@ function updateProductInventory(productId, quantity) {
     saveInventoryState(inventory);
 }
 
+function restoreProductInventory(productId, quantity) {
+
+    const inventory = getInventoryState();
+    const product = products.find(function (item) { return item.id === productId; });
+    if (!product) return;
+
+    const item = getProductInventory(product);
+    item.stock = Math.min(item.maxStock, item.stock + Math.max(0, Number(quantity) || 0));
+    item.restockAt = 0;
+    inventory[String(productId)] = item;
+    saveInventoryState(inventory);
+}
+
 function scheduleInventoryRefresh(product) {
 
     const inventory = getProductInventory(product);
@@ -1845,10 +1858,16 @@ function addToCart(id, quantityInput) {
         JSON.stringify(cartList)
     );
 
+    updateProductInventory(id, quantity);
+
     updateCartCount();
 
     if (document.getElementById("cart-items-wrapper")) {
         renderCartItems();
+    }
+
+    if (document.getElementById("product-detail")) {
+        renderProductDetail();
     }
 
     alert(
@@ -1960,10 +1979,14 @@ function updateQuantity(id, change) {
     if (change > 0) {
         const product = products.find(function (candidate) { return candidate.id === id; });
         const availableStock = product ? getProductInventory(product).stock : 0;
-        if (item.quantity + change > availableStock) {
-            alert("Only " + Math.max(0, availableStock - item.quantity) + " more are available.");
+        if (change > availableStock) {
+            alert("Only " + availableStock + " more are available.");
             return;
         }
+    }
+
+    if (change < 0) {
+        restoreProductInventory(id, Math.min(item.quantity, Math.abs(change)));
     }
 
     item.quantity += change;
@@ -1993,7 +2016,13 @@ function updateQuantity(id, change) {
 // CLEAR CART
 // =====================================================
 
-function clearEntireCart() {
+function clearEntireCart(restoreStock = true) {
+
+    if (restoreStock) {
+        cartList.forEach(function (item) {
+            restoreProductInventory(item.id, item.quantity);
+        });
+    }
 
     cartList = [];
 
@@ -2230,17 +2259,6 @@ function triggerCheckoutAlert() {
         return;
     }
 
-    const unavailableItem = cartList.find(function (item) {
-        const product = products.find(function (candidate) { return candidate.id === item.id; });
-        return !product || item.quantity > getProductInventory(product).stock;
-    });
-
-    if (unavailableItem) {
-        alert("Some items in your cart are no longer available in that quantity. Please update your cart.");
-        renderCartItems();
-        return;
-    }
-
     const orderNumber =
         "MADO-" + Math.floor(100000 + Math.random() * 900000);
 
@@ -2248,9 +2266,6 @@ function triggerCheckoutAlert() {
         return sum + Math.max(0, Number(item.quantity) || 0);
     }, 0);
 
-    cartList.forEach(function (item) {
-        updateProductInventory(item.id, item.quantity);
-    });
     const previousPurchaseCount = getLifetimePurchaseCount();
     const updatedPurchaseCount = previousPurchaseCount + purchasedQuantity;
     setLifetimePurchaseCount(updatedPurchaseCount);
@@ -2270,7 +2285,7 @@ function triggerCheckoutAlert() {
         orderNumber
     );
 
-    clearEntireCart();
+    clearEntireCart(false);
 }
 
 
