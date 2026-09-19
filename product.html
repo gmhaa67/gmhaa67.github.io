@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">Mado & Mido's Shop 🛍️</a>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="products.html" class="active-link">Products</a>
+        <a href="track.html">Track Package</a>
+    </nav>
+
+    <div class="header-right">
+        <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+        <div id="auth-area"></div>
+        <a href="cart.html" class="cart-icon">Cart 🛒 <span id="cart-count">0</span></a>
+    </div>
+</header>
+
+<main class="product-page-shell">
+    <div id="product-detail"></div>
+</main>
+
+<script src="script.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>
