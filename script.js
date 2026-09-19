@@ -428,6 +428,62 @@ const products = [
         "shopping.png.jpg",
         "shopping.jpg"
     ]
+},
+{
+    id: 38,
+    title: "world cup 2026 football",
+    price: 200,
+    category: "football",
+    img: "futbal.png",
+    fallbacks: [
+        "futbal.png.png",
+        "futbal.png.jpg",
+        "futbal.jpg",
+        "football.png",
+        "football.jpg"
+    ]
+},
+{
+    id: 39,
+    title: "proffessional goalkeeping gloves",
+    price: 127,
+    category: "football",
+    img: "goalkeeper.png",
+    fallbacks: [
+        "goalkeeper.png.png",
+        "goalkeeper.png.jpg",
+        "goalkeeper.jpg",
+        "goalkeeper.png",
+        "goalkeeper.jpg"
+    ]
+}
+,{
+    id: 40,
+    title: "proffessional football boots",
+    price: 127,
+    category: "football",
+    img: "depends.png",
+    fallbacks: [
+        "depends.png.png",
+        "depends.png.jpg",
+        "depends.jpg",
+        "depends.png",
+        "depends.jpg"
+    ]
+}
+,{
+    id: 41,
+    title: "ronaldo signed jersey",
+    price: 50000,
+    category: "football",
+    img: "dependss.png",
+    fallbacks: [
+        "dependss.png.png",
+        "dependss.png.jpg",
+        "dependss.jpg",
+        "dependss.png",
+        "dependss.jpg"
+    ]
 }
 ];
 
@@ -437,6 +493,83 @@ const products = [
 // =====================================================
 
 let cartList = [];
+const inventoryStorageKey = "shop-product-inventory";
+const defaultMaxStock = 20;
+const restockDelay = 60 * 1000;
+
+function getInventoryState() {
+
+    try {
+        const savedInventory = JSON.parse(localStorage.getItem(inventoryStorageKey) || "{}");
+        return savedInventory && typeof savedInventory === "object" ? savedInventory : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function saveInventoryState(inventory) {
+
+    try {
+        localStorage.setItem(inventoryStorageKey, JSON.stringify(inventory));
+    } catch (error) {
+        console.warn("Could not save product inventory.", error);
+    }
+}
+
+function getProductInventory(product) {
+
+    const inventory = getInventoryState();
+    const productKey = String(product.id);
+    const maxStock = Math.max(1, Number(product.maxStock) || defaultMaxStock);
+    const initialStock = Math.min(maxStock, Math.max(1, Number(product.initialStock) || (5 + (product.id * 7) % 16)));
+    let item = inventory[productKey];
+
+    if (!item || typeof item !== "object") {
+        item = { stock: initialStock, maxStock: maxStock, restockAt: 0 };
+        inventory[productKey] = item;
+        saveInventoryState(inventory);
+    }
+
+    item.maxStock = maxStock;
+    item.stock = Math.max(0, Math.min(maxStock, Number(item.stock) || 0));
+
+    if (item.stock === 0 && item.restockAt && Date.now() >= Number(item.restockAt)) {
+        item.stock = Math.floor(Math.random() * maxStock) + 1;
+        item.restockAt = 0;
+        saveInventoryState(inventory);
+    }
+
+    return item;
+}
+
+function updateProductInventory(productId, quantity) {
+
+    const inventory = getInventoryState();
+    const product = products.find(function (item) { return item.id === productId; });
+    if (!product) return;
+
+    const item = getProductInventory(product);
+    item.stock = Math.max(0, item.stock - quantity);
+    if (item.stock === 0) {
+        item.restockAt = Date.now() + restockDelay;
+    }
+
+    inventory[String(productId)] = item;
+    saveInventoryState(inventory);
+}
+
+function scheduleInventoryRefresh(product) {
+
+    const inventory = getProductInventory(product);
+    if (inventory.stock !== 0 || !inventory.restockAt) return;
+
+    const delay = Math.max(500, Number(inventory.restockAt) - Date.now() + 100);
+    window.setTimeout(function () {
+        getProductInventory(product);
+        if (document.getElementById("products-grid")) renderProducts(products);
+        if (document.getElementById("product-detail")) renderProductDetail();
+    }, delay);
+}
 
 try {
     const savedCart = localStorage.getItem("cartList");
@@ -475,6 +608,8 @@ const couponDiscounts = {
 
 document.addEventListener("DOMContentLoaded", function () {
 
+    installShopLanguageControl();
+    applyShopLanguage();
     updateCartCount();
 
     const productsGrid =
@@ -486,6 +621,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (document.getElementById("cart-items-wrapper")) {
         renderCartItems();
+    }
+
+    if (document.getElementById("product-detail")) {
+        renderProductDetail();
     }
 
     loadTheme();
@@ -524,6 +663,994 @@ function loadProductImage(img, product) {
 
 
 // =====================================================
+// PRODUCT DETAIL + REVIEWS
+// =====================================================
+
+const productReviewStorageKey = "shop-product-reviews";
+const productReviewVoteStorageKey = "shop-product-review-votes";
+const lifetimePurchaseStorageKey = "shop-session-purchases";
+const shopLanguageStorageKey = "shop-language";
+const shopAvatarStorageKey = "shop-avatar";
+const shopVerifiedNotificationKey = "shop-session-verified-notification-shown";
+const shopRuntimeId = String(Date.now()) + Math.random().toString(36).slice(2);
+
+const shopTranslations = {
+    en: {
+        home: "Home",
+        products: "Products",
+        track: "Track Package",
+        cart: "Cart",
+        language: "Language",
+        customerReviews: "Customer reviews",
+        yourRating: "Your rating",
+        selected: "Selected",
+        writeReview: "Write your review...",
+        submitReview: "Submit review",
+        reply: "Reply",
+        writeReply: "Write a reply...",
+        postReply: "Post reply",
+        verifiedBuyer: "Verified buyer",
+        congratulations: "Congratulations! You are now a verified buyer after purchasing 200 products.",
+        automaticReply: "Thanks for sharing your thoughts! The community appreciates your reply.",
+        chooseAvatar: "Profile picture",
+        featuredProducts: "Featured Products",
+        shopNow: "Shop Now",
+        browseProducts: "Browse Products",
+        yourCart: "Your Cart",
+        orderSummary: "Order Summary",
+        subtotal: "Subtotal",
+        shipping: "Shipping",
+        total: "Total",
+        clearCart: "Clear Cart",
+        checkout: "Checkout",
+        trackPackage: "Track Your Package",
+        profileSettings: "Profile settings",
+        pickPhoto: "Pick your photo"
+    },
+    ar: {
+        home: "الرئيسية",
+        products: "المنتجات",
+        track: "تتبع الطلب",
+        cart: "السلة",
+        language: "اللغة",
+        customerReviews: "آراء العملاء",
+        yourRating: "تقييمك",
+        selected: "المحدد",
+        writeReview: "اكتب مراجعتك...",
+        submitReview: "إرسال المراجعة",
+        reply: "رد",
+        writeReply: "اكتب رداً...",
+        postReply: "نشر الرد",
+        verifiedBuyer: "مشتري موثق",
+        congratulations: "تهانينا! أصبحت الآن مشترياً موثقاً بعد شراء 200 منتج.",
+        automaticReply: "شكراً لمشاركة رأيك! المجتمع يقدر ردك.",
+        chooseAvatar: "الصورة الشخصية",
+        featuredProducts: "المنتجات المميزة",
+        shopNow: "تسوق الآن",
+        browseProducts: "تصفح المنتجات",
+        yourCart: "سلتك",
+        orderSummary: "ملخص الطلب",
+        subtotal: "المجموع الفرعي",
+        shipping: "الشحن",
+        total: "الإجمالي",
+        clearCart: "إفراغ السلة",
+        checkout: "الدفع",
+        trackPackage: "تتبع طلبك",
+        profileSettings: "إعدادات الملف الشخصي",
+        pickPhoto: "اختر صورتك"
+    }
+};
+
+function getShopLanguage() {
+    return localStorage.getItem(shopLanguageStorageKey) === "ar" ? "ar" : "en";
+}
+
+function translateShop(key) {
+    return shopTranslations[getShopLanguage()][key] || shopTranslations.en[key] || key;
+}
+
+function getShopAvatar() {
+    const savedAvatar = localStorage.getItem(shopAvatarStorageKey);
+    return savedAvatar || "plush.png.png";
+}
+
+const profilePhotoChoices = [
+    { name: "Alya", image: "plush.png.png" },
+    { name: "Pomni", image: "pomni.png.png" },
+    { name: "Jax", image: "j.png" },
+    { name: "Cash", image: "cah.png" }
+];
+
+function openProfilePhotoPicker() {
+    const existingPicker = document.getElementById("profile-photo-picker");
+    if (existingPicker) {
+        existingPicker.remove();
+        return;
+    }
+
+    const picker = document.createElement("div");
+    picker.id = "profile-photo-picker";
+    picker.className = "profile-photo-picker";
+    picker.innerHTML = `
+        <div class="profile-photo-picker-card" role="dialog" aria-label="${translateShop("pickPhoto")}">
+            <button type="button" class="profile-photo-close" aria-label="Close">×</button>
+            <h3>${translateShop("pickPhoto")}</h3>
+            <div class="profile-photo-options">
+                ${profilePhotoChoices.map(function (choice) {
+                    const selected = getShopAvatar() === choice.image ? "selected" : "";
+                    return `<button type="button" class="profile-photo-option ${selected}" data-profile-photo="${choice.image}"><img src="${choice.image}" alt="${choice.name}" onerror="this.src='j.png'"><span>${choice.name}</span></button>`;
+                }).join("")}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(picker);
+
+    picker.querySelector(".profile-photo-close").addEventListener("click", function () {
+        picker.remove();
+    });
+    picker.addEventListener("click", function (event) {
+        if (event.target === picker) picker.remove();
+    });
+    picker.querySelectorAll("[data-profile-photo]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            localStorage.setItem(shopAvatarStorageKey, button.dataset.profilePhoto);
+            picker.remove();
+            if (document.getElementById("product-detail")) renderProductDetail();
+        });
+    });
+}
+
+function showShopNotification(message) {
+    const existing = document.querySelector(".shop-notification");
+    if (existing) existing.remove();
+
+    const notification = document.createElement("div");
+    notification.className = "shop-notification";
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    window.setTimeout(function () {
+        notification.classList.add("is-hidden");
+        window.setTimeout(function () { notification.remove(); }, 300);
+    }, 5000);
+}
+
+function applyShopLanguage() {
+    const language = getShopLanguage();
+    const direction = language === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = language;
+    document.documentElement.dir = direction;
+    document.body.classList.toggle("arabic-language", language === "ar");
+
+    document.querySelectorAll("header nav a").forEach(function (link) {
+        const href = link.getAttribute("href") || "";
+        if (href.includes("index.html")) link.textContent = translateShop("home");
+        if (href.includes("products.html")) link.textContent = translateShop("products");
+        if (href.includes("track.html")) link.textContent = translateShop("track");
+    });
+
+    document.querySelectorAll(".cart-icon").forEach(function (element) {
+        const count = element.querySelector("#cart-count");
+        element.childNodes[0].textContent = translateShop("cart") + " 🛒 ";
+        if (count) element.appendChild(count);
+    });
+
+    const commonText = {
+        "Featured Products": translateShop("featuredProducts"),
+        "Shop Now": translateShop("shopNow"),
+        "Browse Products": translateShop("browseProducts"),
+        "Your Cart": translateShop("yourCart"),
+        "Order Summary": translateShop("orderSummary"),
+        "Subtotal": translateShop("subtotal"),
+        "Shipping": translateShop("shipping"),
+        "Total": translateShop("total"),
+        "Clear Cart": translateShop("clearCart"),
+        "Checkout": translateShop("checkout"),
+        "Track Your Package": translateShop("trackPackage")
+    };
+    document.querySelectorAll("body *:not(script):not(style)").forEach(function (element) {
+        if (element.children.length === 0) {
+            const text = element.textContent.trim();
+            if (commonText[text]) element.textContent = commonText[text];
+        }
+    });
+
+    const selector = document.getElementById("shop-language-select");
+    if (selector) {
+        selector.value = language;
+        const label = selector.parentElement.querySelector("span");
+        if (label) label.textContent = translateShop("language");
+    }
+
+    const profileButton = document.querySelector(".profile-settings-btn");
+    if (profileButton) {
+        profileButton.title = translateShop("profileSettings");
+        profileButton.setAttribute("aria-label", translateShop("profileSettings"));
+    }
+
+    if (document.getElementById("product-detail")) {
+        renderProductDetail();
+    }
+}
+
+function installShopLanguageControl() {
+    const headerRight = document.querySelector("header .header-right");
+    if (!headerRight || document.getElementById("shop-language-select")) return;
+
+    const wrapper = document.createElement("label");
+    wrapper.className = "language-control";
+    wrapper.innerHTML = `<span>${translateShop("language")}</span><select id="shop-language-select" aria-label="${translateShop("language")}"><option value="en">English</option><option value="ar">العربية</option></select>`;
+    wrapper.querySelector("select").addEventListener("change", function (event) {
+        localStorage.setItem(shopLanguageStorageKey, event.target.value);
+        applyShopLanguage();
+    });
+    headerRight.insertBefore(wrapper, headerRight.firstChild);
+
+    const profileButton = document.createElement("button");
+    profileButton.type = "button";
+    profileButton.className = "profile-settings-btn";
+    profileButton.title = translateShop("profileSettings");
+    profileButton.setAttribute("aria-label", translateShop("profileSettings"));
+    profileButton.textContent = "⚙";
+    profileButton.addEventListener("click", openProfilePhotoPicker);
+    headerRight.insertBefore(profileButton, headerRight.firstChild);
+}
+
+function getLifetimePurchaseCount() {
+
+    try {
+        const parsedValue = JSON.parse(sessionStorage.getItem(lifetimePurchaseStorageKey) || "0");
+        const value = Number(parsedValue);
+        return Number.isFinite(value) ? Math.max(0, value) : 0;
+    } catch (error) {
+        return 0;
+    }
+}
+
+function setLifetimePurchaseCount(value) {
+
+    const safeValue = Math.max(0, Number(value) || 0);
+
+    try {
+        sessionStorage.setItem(lifetimePurchaseStorageKey, String(safeValue));
+    } catch (error) {
+        console.warn("Could not save lifetime purchase count.", error);
+    }
+}
+
+function hasVerifiedBuyerBadge(review) {
+
+    if (!review) return false;
+
+    if (review.user === "You") {
+        return getLifetimePurchaseCount() >= 200;
+    }
+
+    if (review.verified === true) {
+        return true;
+    }
+
+    return false;
+}
+
+function getReviewDisplayName(review) {
+
+    if (!review || !review.user) {
+        return "Guest";
+    }
+
+    return review.user;
+}
+
+function getReviewAvatar(review, index) {
+    const reviewUser = String(review && review.user || "").toLowerCase();
+
+    if (reviewUser === "mido" || reviewUser === "mido-t7" || reviewUser === "mido_t7") {
+        return "pomni.png.png";
+    }
+
+    if (reviewUser === "alya") {
+        return "plush.png.png";
+    }
+
+    if (reviewUser === "you") {
+        return getShopAvatar();
+    }
+
+    if (review && review.avatar === "plush.png.png") {
+        return "j.png";
+    }
+
+    return (review && review.avatar && review.avatar.includes(".")) ? review.avatar : "j.png";
+}
+
+function getReplyAvatar(reply) {
+    const replyUser = String(reply && reply.user || "").toLowerCase();
+
+    if (replyUser === "alya") return "plush.png.png";
+    if (replyUser === "mido" || replyUser === "mido-t7" || replyUser === "mido_t7" || replyUser === "pomni") {
+        return "pomni.png.png";
+    }
+    if (replyUser === "you" || replyUser === "mado") return getShopAvatar();
+    if (reply && reply.avatar === "plush.png.png") return "j.png";
+
+    return reply && reply.avatar && reply.avatar.includes(".") ? reply.avatar : "j.png";
+}
+
+function getAutomaticReplies(review) {
+    const reviewUser = String(review && review.user || "").toLowerCase();
+    const replies = [];
+
+    if (reviewUser === "you" || reviewUser === "mado") {
+        replies.push({
+            user: "Alya",
+            avatar: "plush.png.png",
+            text: Math.random() > 0.5 ? "Hi Mado!" : "Umm... I like you."
+        });
+    } else if (reviewUser === "mido" || reviewUser === "mido-t7" || reviewUser === "mido_t7") {
+        replies.push({
+            user: "Pomni",
+            avatar: "pomni.png.png",
+            text: Math.random() > 0.5 ? "Hi Mido!" : "Umm... I like you."
+        });
+    } else {
+        replies.push({
+            user: "Noah",
+            avatar: "j.png",
+            text: "Thanks for sharing your thoughts!"
+        });
+    }
+
+    replies.push(
+        {
+            user: "Mila",
+            avatar: "cah.png",
+            text: "I enjoyed reading this too."
+        },
+        {
+            user: "Theo",
+            avatar: "j.png",
+            text: "This is a thoughtful reply."
+        },
+        {
+            user: "Nina",
+            avatar: "futbal.png",
+            text: "I agree with what you said!"
+        }
+    );
+
+    return replies;
+}
+
+function getReviewVoteState(productId, reviewIndex) {
+
+    try {
+        const votes = JSON.parse(localStorage.getItem(productReviewVoteStorageKey) || "{}");
+        const key = String(productId) + ":" + String(reviewIndex);
+        return votes[key] || "none";
+    } catch (error) {
+        return "none";
+    }
+}
+
+function setReviewVoteState(productId, reviewIndex, vote) {
+
+    try {
+        const votes = JSON.parse(localStorage.getItem(productReviewVoteStorageKey) || "{}");
+        const key = String(productId) + ":" + String(reviewIndex);
+        if (vote === "none") {
+            delete votes[key];
+        } else {
+            votes[key] = vote;
+        }
+        localStorage.setItem(productReviewVoteStorageKey, JSON.stringify(votes));
+    } catch (error) {
+        console.warn("Could not save review vote state.", error);
+    }
+}
+
+function buildDefaultReviews(product) {
+
+    const categoryComments = {
+        electronics: [
+            "The build quality feels premium and the performance is exactly what I expected.",
+            "This electronic item arrived quickly and the setup was easy.",
+            "It looks great in person and works smoothly every day.",
+            "The finish is clean and the features feel worth the price.",
+            "I’ve been using this for a while and it still feels reliable.",
+            "This product has a premium look and really delivers on quality.",
+            "The setup was simple and the performance feels smooth from day one.",
+            "It looks sleek and the quality feels exactly as premium as advertised."
+        ],
+        clothes: [
+            "The fit feels comfortable and the material looks much better in person.",
+            "The stitching is solid and the design feels stylish without being over the top.",
+            "This outfit is super comfortable and looks great for everyday wear.",
+            "I liked the quality and the colour matched the description perfectly.",
+            "It feels soft, looks premium, and is easy to style.",
+            "The quality is better than expected and the fit feels right.",
+            "The fabric feels soft and the design is clean and modern.",
+            "Very comfortable and looks much more expensive than the price tag."
+        ],
+        shoes: [
+            "The comfort is excellent and the design looks premium right away.",
+            "They feel sturdy, stylish, and very easy to wear all day.",
+            "The fit is great and the finish looks clean and high quality.",
+            "I was impressed by how comfortable these were from the first wear.",
+            "The quality feels strong and the look definitely stands out.",
+            "Great value for a pair that looks this good and feels this comfortable.",
+            "Very comfortable and the grip feels stable when walking around.",
+            "The design looks premium and the materials feel durable."
+        ],
+        plush: [
+            "This plush is adorable and the texture feels really soft and detailed.",
+            "The quality is surprisingly good and it looks even better in person.",
+            "It feels soft, well-made, and makes a great display piece.",
+            "The design is cute and the finish feels polished and premium.",
+            "I bought it as a gift and it was a huge hit.",
+            "The plush looks amazing and the details are really well done.",
+            "It feels super soft and the detailing is really clean.",
+            "Very playful and nice to display in a bedroom or living room."
+        ],
+        football: [
+            "The football feels great in hand and the grip is solid during play.",
+            "It looks professional, feels durable, and works well in training.",
+            "The quality feels reliable and the design stands out on the pitch.",
+            "This football feels premium and comfortable to use in practice.",
+            "The finish looks excellent and it holds up well during games.",
+            "Great for training or casual play and the quality feels worth it.",
+            "The ball keeps its shape well and feels consistent from kick to kick.",
+            "It has a nice feel when striking and the surface looks clean and durable.",
+            "Perfect for everyday football, with good balance and a solid grip.",
+            "The ball is easy to control and feels more premium than expected.",
+            "It handles nicely in practice and looks sharp on the pitch.",
+            "The material feels sturdy and it performs well in both training and casual matches.",
+            "The ball feels balanced and sits well in the foot when passing or shooting.",
+            "It gives a clean feel when striking and has good control during play."
+        ],
+        "gift cards": [
+            "Quick and easy to use, and the value feels exactly as expected.",
+            "Very convenient and simple to redeem without any hassle.",
+            "A practical gift option that feels smooth and instant.",
+            "The process was quick and the value made it worth it.",
+            "Good convenience and easy to send as a gift.",
+            "This was a great option and the delivery was fast and straightforward.",
+            "Very simple to redeem and the value feels right for the price.",
+            "Great for gifting and the process is super straightforward."
+        ],
+        food: [
+            "The product arrived in great condition and looked really premium.",
+            "The quality felt authentic and the presentation was excellent.",
+            "It definitely looked and tasted like a luxury item.",
+            "The product feels premium and the flavour was worth the price.",
+            "Really good quality and the packaging felt high end.",
+            "The presentation is polished and the product feels special.",
+            "The product looks premium and the taste matches the quality.",
+            "Very high quality packaging and the item felt authentic and fresh."
+        ],
+        cars: [
+            "The details on this are incredible and it looks even better in person.",
+            "This model has excellent attention to detail and a premium finish.",
+            "The design feels realistic and the quality is impressive.",
+            "It looks amazing and the craftsmanship feels really high end.",
+            "The detailing is sharp and the overall look feels very premium.",
+            "This is a standout piece with a strong design and excellent finish.",
+            "The details are really sharp and the finish feels excellent.",
+            "Very realistic design and the quality feels premium from every angle."
+        ],
+        "custom jewelry": [
+            "The craftsmanship is excellent and the finish feels premium and personal.",
+            "It looks elegant in person and the detail work is very impressive.",
+            "The design is beautiful and the overall quality feels exceptional.",
+            "This piece feels premium, unique, and very well-made.",
+            "The detailing is stunning and the finish feels luxurious.",
+            "It looks classy and the quality matches the premium design.",
+            "Very rich design and the finish feels beautifully made.",
+            "The detail and shine are excellent and it feels one of a kind."
+        ]
+    };
+
+    const productTitle = (product && product.title) ? product.title : "product";
+    const productType = (product && product.category) ? product.category : "electronics";
+    const categoryBase = categoryComments[productType] || categoryComments.electronics;
+    const titleTag = productTitle.replace(/[^a-zA-Z0-9 ]/g, "").trim() || "product";
+
+    const specificComments = [
+        `The ${productTitle} looks even better in person and feels premium quality.`,
+        `I bought the ${productTitle} and it definitely exceeded my expectations.`,
+        `The ${productTitle} has excellent detail and feels worth the price.`,
+        `This ${productType} item is a great choice if you want something stylish and reliable.`,
+        `The ${titleTag} design is impressive and the craftsmanship stands out.`,
+        `I’d recommend the ${productTitle} because it looks premium and performs really well.`,
+        `The ${productTitle} feels polished and the details really stand out.`,
+        `This is one of the better ${productType} items I’ve bought recently.`
+    ];
+
+    const negativeComments = [
+        "The product is decent, but I expected a little more value for the price.",
+        "Looks good, but it took longer than expected to arrive.",
+        "The quality is okay, though I think it could be better for the cost.",
+        "The item works fine, but the sizing or finish was not exactly what I wanted.",
+        "It is good overall, but there are a few small details I would improve.",
+        "The product is nice, but shipping was slower than I hoped.",
+        "It is solid, but it is not as premium as I had hoped.",
+        "This works well enough, though I expected a slightly better finish.",
+        "The design is nice, but there are a few quality details I would tweak.",
+        "Good product overall, but I think it could be a bit more durable.",
+        "It does the job, but I expected a more premium feel from the material.",
+        "The product was fine, yet I think the value could be a little better.",
+        "It is okay, but I think the quality feels a little simple for the price.",
+        "The product works as expected, but I hoped for a stronger finish."
+    ];
+
+    const allComments = [...categoryBase, ...specificComments, ...negativeComments];
+    const ratingSeed = (product && product.id ? product.id : 1) * 13 % allComments.length;
+
+    const reviewList = [
+        { user: "Mido", verified: true, rating: 5, likes: 18, dislikes: 1, replies: [{ user: "Pomni", avatar: "pomni.png.png", text: "Hi Mido! I like this review." }, { user: "Ava", text: "Totally agree — it looks even better in person." }], comment: allComments[(ratingSeed + 0) % allComments.length] },
+        { user: "Alya", verified: true, rating: 4.5, likes: 15, dislikes: 2, replies: [{ user: "Noah", text: "Same here, the quality feels really good." }], comment: allComments[(ratingSeed + 2) % allComments.length] },
+        { user: "Ava", verified: false, rating: 5, likes: 21, dislikes: 0, replies: [{ user: "Rin", text: "This is seriously worth it." }], comment: allComments[(ratingSeed + 4) % allComments.length] },
+        { user: "Leo", verified: false, rating: 3, likes: 6, dislikes: 3, replies: [{ user: "Nina", text: "A bit slow on delivery but the product is okay." }], comment: negativeComments[(ratingSeed + 1) % negativeComments.length] },
+        { user: "Zoe", verified: true, rating: 5, likes: 19, dislikes: 1, replies: [{ user: "Sam", text: "I’d buy it again." }], comment: allComments[(ratingSeed + 3) % allComments.length] },
+        { user: "Nina", verified: false, rating: 2.5, likes: 4, dislikes: 4, replies: [{ user: "Theo", text: "I get that, but still looks good overall." }], comment: negativeComments[(ratingSeed + 3) % negativeComments.length] },
+        { user: "Sam", verified: false, rating: 4, likes: 11, dislikes: 2, replies: [{ user: "Mila", text: "Nice review, I agree with you." }], comment: allComments[(ratingSeed + 5) % allComments.length] },
+        { user: "Noah", verified: true, rating: 5, likes: 24, dislikes: 0, replies: [{ user: "Kai", text: "Looks great and feels premium." }], comment: allComments[(ratingSeed + 6) % allComments.length] },
+        { user: "Mila", verified: false, rating: 4.5, likes: 13, dislikes: 2, replies: [{ user: "Lena", text: "Super happy with this purchase." }], comment: allComments[(ratingSeed + 7) % allComments.length] },
+        { user: "Kai", verified: true, rating: 3.5, likes: 8, dislikes: 3, replies: [{ user: "Omar", text: "It’s decent, but feels a little simple for the price." }], comment: negativeComments[(ratingSeed + 5) % negativeComments.length] },
+        { user: "Rin", verified: false, rating: 5, likes: 17, dislikes: 0, replies: [{ user: "Mido", text: "Exactly — this one is worth it." }], comment: allComments[(ratingSeed + 8) % allComments.length] },
+        { user: "Theo", verified: true, rating: 4, likes: 12, dislikes: 1, replies: [{ user: "Alya", text: "The quality definitely holds up." }], comment: allComments[(ratingSeed + 9) % allComments.length] },
+        { user: "Lena", verified: false, rating: 5, likes: 22, dislikes: 1, replies: [{ user: "Zoe", text: "I’d recommend it for sure." }], comment: allComments[(ratingSeed + 10) % allComments.length] },
+        { user: "Omar", verified: false, rating: 2, likes: 3, dislikes: 6, replies: [{ user: "Sam", text: "Not my experience, but still fair feedback." }], comment: negativeComments[(ratingSeed + 9) % negativeComments.length] }
+    ];
+
+    return reviewList;
+}
+
+function getSavedProductReviews(product) {
+
+    const productId = product && product.id ? product.id : "unknown";
+
+    try {
+        const savedReviews = JSON.parse(localStorage.getItem(productReviewStorageKey) || "{}");
+        const productReviews = savedReviews[productId];
+
+        if (Array.isArray(productReviews) && productReviews.length > 0) {
+            return productReviews.filter(function (review) {
+                return review && (review.user !== "You" || review.sessionId === shopRuntimeId);
+            }).map(function (review) {
+                return {
+                    user: review.user || "Guest",
+                    avatar: String(review.user || "").toLowerCase() === "alya"
+                        ? "plush.png.png"
+                        : (String(review.user || "").toLowerCase() === "you" ? getShopAvatar()
+                        : ((["mido", "mido-t7", "mido_t7"].includes(String(review.user || "").toLowerCase())) ? "pomni.png.png" : (review.avatar === "plush.png.png" ? "j.png" : (review.avatar || "j.png")))),
+                    verified: review.user === "You"
+                        ? getLifetimePurchaseCount() >= 200
+                        : Boolean(review.verified),
+                    rating: Number(review.rating) || 0,
+                    comment: review.comment || "",
+                    likes: Number(review.likes) || 0,
+                    dislikes: Number(review.dislikes) || 0,
+                    replies: Array.isArray(review.replies)
+                        ? review.replies.filter(function (reply) {
+                            return reply && reply.user !== "Fan";
+                        })
+                        : []
+                };
+            });
+        }
+    } catch (error) {
+        return buildDefaultReviews(product);
+    }
+
+    return buildDefaultReviews(product);
+}
+
+function saveProductReviews(productId, reviews) {
+
+    try {
+        const savedReviews = JSON.parse(localStorage.getItem(productReviewStorageKey) || "{}");
+        savedReviews[productId] = reviews;
+        localStorage.setItem(productReviewStorageKey, JSON.stringify(savedReviews));
+    } catch (error) {
+        console.warn("Could not save product reviews.", error);
+    }
+}
+
+function getAverageRating(reviews) {
+
+    if (!Array.isArray(reviews) || reviews.length === 0) {
+        return 0;
+    }
+
+    const total = reviews.reduce(function (sum, review) {
+        return sum + (Number(review.rating) || 0);
+    }, 0);
+
+    return total / reviews.length;
+}
+
+function openProductPage(productId) {
+
+    window.location.href = "product.html?id=" + productId;
+}
+
+function renderProductDetail() {
+
+    const detailRoot = document.getElementById("product-detail");
+
+    if (!detailRoot) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const productId = Number(params.get("id"));
+    const product = products.find(function (item) {
+        return item.id === productId;
+    });
+
+    if (!product) {
+        detailRoot.innerHTML = `
+            <div class="product-detail-empty">
+                <h2>Product not found</h2>
+                <p>The item you requested is no longer available.</p>
+                <a href="products.html" class="back-to-products">Back to products</a>
+            </div>
+        `;
+        return;
+    }
+
+    const reviews = getSavedProductReviews(product);
+    const averageRating = getAverageRating(reviews);
+    const inventory = getProductInventory(product);
+    const quantity = inventory.stock;
+    scheduleInventoryRefresh(product);
+    const primaryImage = product.img || "";
+    const allImages = [primaryImage].concat(product.fallbacks || []).filter(Boolean);
+    const uniqueImages = [...new Set(allImages)];
+    const relatedProducts = products.filter(function (item) {
+        return item.category === product.category && item.id !== product.id;
+    }).slice(0, 4);
+
+    detailRoot.innerHTML = `
+        <div class="product-detail-shell">
+            <div class="product-detail-header">
+                <button class="secondary-btn" onclick="window.location.href='products.html'">← Back to products</button>
+            </div>
+
+            <div class="product-detail-content">
+                <div class="product-gallery">
+                    <img
+                        id="detail-main-image"
+                        src="${primaryImage}"
+                        alt="${product.title}"
+                        onerror="this.src='${uniqueImages[1] || 'https://via.placeholder.com/600x600?text=Product'}';"
+                    >
+                    <div class="product-gallery-thumbs">
+                        ${uniqueImages.map(function (image, index) {
+                            return `
+                                <button class="thumb-btn ${index === 0 ? "active" : ""}" data-image="${image}">
+                                    <img src="${image}" alt="${product.title} thumbnail" onerror="this.style.display='none'">
+                                </button>
+                            `;
+                        }).join("")}
+                    </div>
+                </div>
+
+                <div class="product-detail-info">
+                    <span class="product-category-label">${product.category}</span>
+                    <h1>${product.title}</h1>
+
+                    <div class="product-rating-row">
+                        <div class="stars" aria-label="Average rating ${averageRating.toFixed(1)} out of 5">
+                            ${renderStars(averageRating)}
+                        </div>
+                        <span>${averageRating.toFixed(1)} / 5</span>
+                    </div>
+
+                    <p class="product-detail-price">$${Number(product.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p class="product-description">${product.description || "A premium item designed for style, comfort, and everyday use."}</p>
+
+                    <div class="product-detail-actions">
+                        <div class="qty-picker ${quantity === 0 ? "is-disabled" : ""}">
+                            <button type="button" data-qty-action="decrease" ${quantity === 0 ? "disabled" : ""}>−</button>
+                            <input id="detail-qty" type="number" min="1" max="${Math.max(1, quantity)}" value="${quantity === 0 ? 0 : 1}" ${quantity === 0 ? "disabled" : ""}>
+                            <button type="button" data-qty-action="increase" ${quantity === 0 ? "disabled" : ""}>+</button>
+                        </div>
+
+                        <button class="add-btn detail-add-btn" data-add-product="${product.id}" ${quantity === 0 ? "disabled" : ""}>${quantity === 0 ? "Sold out" : "Add to Cart 🛒"}</button>
+                    </div>
+
+                    <div class="product-stock">
+                        ${quantity > 0 ? `<strong>Available:</strong> ${quantity} in stock` : `<strong>Sold out.</strong> Restocking soon.`}
+                    </div>
+                </div>
+            </div>
+
+            <div class="product-review-section">
+                <h2>${translateShop("customerReviews")}</h2>
+
+                <div class="review-form">
+                    <label>${translateShop("yourRating")}</label>
+                    <div class="interactive-stars" id="interactive-stars">
+                        ${[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(function (star) {
+                            return `<button type="button" class="star-btn" data-value="${star}">${star % 1 === 0 ? "★" : "⯨"}</button>`;
+                        }).join("")}
+                    </div>
+                    <div class="selected-rating-label" id="selected-rating-label">${translateShop("selected")}: 0/5</div>
+
+                    <textarea id="new-comment" rows="4" placeholder="${translateShop("writeReview")}"></textarea>
+                    <button type="button" class="primary-btn" id="submit-review">${translateShop("submitReview")}</button>
+                </div>
+
+                <div class="product-comment-list">
+                    ${reviews.map(function (review, reviewIndex) {
+                        const reviewVerified = hasVerifiedBuyerBadge(review);
+                        return `
+                            <article class="comment-item" data-review-index="${reviewIndex}">
+                                <div class="comment-head">
+                                    <div class="comment-user">
+                                        <img class="review-avatar" src="${getReviewAvatar(review, reviewIndex)}" alt="${getReviewDisplayName(review)} profile picture" onerror="this.src='j.png'">
+                                        <strong>${getReviewDisplayName(review)}</strong>
+                                        ${reviewVerified ? '<span class="verified-badge">Verified buyer</span>' : ""}
+                                    </div>
+                                    <span class="mini-stars">${renderStars(Number(review.rating) || 0)}</span>
+                                </div>
+                                <p>${review.comment}</p>
+                                <div class="comment-actions">
+                                    <button class="comment-like-btn" type="button" data-review-index="${reviewIndex}" data-vote="like">👍 <span>${Number(review.likes || 0)}</span></button>
+                                    <button class="comment-dislike-btn" type="button" data-review-index="${reviewIndex}" data-vote="dislike">👎 <span>${Number(review.dislikes || 0)}</span></button>
+                                    <button class="comment-reply-toggle" type="button" data-review-index="${reviewIndex}">${translateShop("reply")} (${(review.replies || []).length})</button>
+                                </div>
+                                <div class="reply-box hidden" data-reply-box="${reviewIndex}">
+                                    <textarea data-reply-input="${reviewIndex}" rows="2" placeholder="${translateShop("writeReply")}"></textarea>
+                                    <button class="primary-btn reply-submit" type="button" data-review-index="${reviewIndex}">${translateShop("postReply")}</button>
+                                </div>
+                                ${(Array.isArray(review.replies) && review.replies.length ? `
+                                    <div class="reply-list">
+                                        ${review.replies.map(function (reply) {
+                                            return `
+                                                <div class="reply-item">
+                                                    <div class="reply-user"><img class="review-avatar" src="${getReplyAvatar(reply)}" alt="${reply.user} profile picture" onerror="this.src='j.png'"><strong>${reply.user}</strong></div>
+                                                    <p>${reply.text}</p>
+                                                </div>
+                                            `;
+                                        }).join("")}
+                                    </div>
+                                ` : "")}
+                            </article>
+                        `;
+                    }).join("")}
+                </div>
+            </div>
+
+            <div class="related-products-section">
+                <div class="related-header-row">
+                    <h2>You may also like</h2>
+                </div>
+                <div class="related-products-grid">
+                    ${relatedProducts.map(function (item) {
+                        return `
+                            <article class="related-product-card" data-related-id="${item.id}">
+                                <img src="${item.img}" alt="${item.title}" onerror="this.src='${(item.fallbacks || [])[0] || 'https://via.placeholder.com/300x220?text=Shop'}';">
+                                <div class="related-product-body">
+                                    <h3>${item.title}</h3>
+                                    <p>$${Number(item.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                    <button type="button" class="secondary-btn related-btn">View item</button>
+                                </div>
+                            </article>
+                        `;
+                    }).join("") || '<p class="related-empty">No related products in this category yet.</p>'}
+                </div>
+            </div>
+        </div>
+    `;
+
+    const detailImage = document.getElementById("detail-main-image");
+    if (detailImage && uniqueImages.length > 1) {
+        document.querySelectorAll(".thumb-btn").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const selected = button.dataset.image;
+                if (selected) {
+                    detailImage.src = selected;
+                    document.querySelectorAll(".thumb-btn").forEach(function (thumb) {
+                        thumb.classList.toggle("active", thumb === button);
+                    });
+                }
+            });
+        });
+    }
+
+    const qtyInput = document.getElementById("detail-qty");
+    if (qtyInput) {
+        document.querySelectorAll("[data-qty-action]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const action = button.dataset.qtyAction;
+                let nextValue = Number(qtyInput.value || 1);
+                if (action === "increase") nextValue += 1;
+                if (action === "decrease") nextValue -= 1;
+                nextValue = Math.min(quantity, Math.max(1, nextValue));
+                qtyInput.value = nextValue;
+            });
+        });
+    }
+
+    const addButton = document.querySelector("[data-add-product]");
+    if (addButton) {
+        addButton.addEventListener("click", function () {
+            const chosenQty = Number(qtyInput?.value || 1);
+            addToCart(product.id, chosenQty);
+        });
+    }
+
+    let currentRating = 0;
+    const ratingLabel = document.getElementById("selected-rating-label");
+
+    document.querySelectorAll(".star-btn").forEach(function (button) {
+        button.addEventListener("click", function () {
+            currentRating = Number(button.dataset.value);
+
+            document.querySelectorAll(".star-btn").forEach(function (star) {
+                const starValue = Number(star.dataset.value);
+                const selected = starValue <= currentRating;
+                const isHalfSelected = Number.isInteger(currentRating) === false && starValue === currentRating;
+                star.classList.toggle("selected", selected);
+                star.textContent = isHalfSelected ? "⯨" : (selected ? "★" : "☆");
+            });
+
+            if (ratingLabel) {
+                ratingLabel.textContent = translateShop("selected") + ": " + currentRating.toFixed(1).replace(".0", "") + "/5";
+            }
+        });
+    });
+
+    const submitReview = document.getElementById("submit-review");
+    const newCommentInput = document.getElementById("new-comment");
+    if (submitReview && newCommentInput) {
+        submitReview.addEventListener("click", function () {
+            const commentText = newCommentInput.value.trim();
+
+            if (!commentText || currentRating === 0) {
+                alert("Please add a rating and a comment before submitting.");
+                return;
+            }
+
+            const updatedReviews = getSavedProductReviews(product);
+            const newReview = {
+                user: "You",
+                sessionId: shopRuntimeId,
+                avatar: getShopAvatar(),
+                verified: getLifetimePurchaseCount() >= 200,
+                rating: currentRating,
+                likes: 0,
+                dislikes: 0,
+                replies: [],
+                comment: commentText
+            };
+            newReview.replies = getAutomaticReplies(newReview);
+            updatedReviews.unshift(newReview);
+
+            saveProductReviews(product.id, updatedReviews);
+            renderProductDetail();
+        });
+    }
+
+    document.querySelectorAll(".comment-like-btn").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const reviewIndex = Number(button.dataset.reviewIndex);
+            const reviewsForProduct = getSavedProductReviews(product);
+            const targetReview = reviewsForProduct[reviewIndex];
+            if (!targetReview) return;
+
+            const currentVote = getReviewVoteState(product.id, reviewIndex);
+            if (currentVote === "like") {
+                return;
+            }
+
+            if (currentVote === "dislike") {
+                targetReview.dislikes = Math.max(0, Number(targetReview.dislikes || 0) - 1);
+            }
+
+            targetReview.likes = Math.max(0, Number(targetReview.likes || 0) + 1);
+            setReviewVoteState(product.id, reviewIndex, "like");
+            saveProductReviews(product.id, reviewsForProduct);
+            renderProductDetail();
+        });
+    });
+
+    document.querySelectorAll(".comment-dislike-btn").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const reviewIndex = Number(button.dataset.reviewIndex);
+            const reviewsForProduct = getSavedProductReviews(product);
+            const targetReview = reviewsForProduct[reviewIndex];
+            if (!targetReview) return;
+
+            const currentVote = getReviewVoteState(product.id, reviewIndex);
+            if (currentVote === "dislike") {
+                return;
+            }
+
+            if (currentVote === "like") {
+                targetReview.likes = Math.max(0, Number(targetReview.likes || 0) - 1);
+            }
+
+            targetReview.dislikes = Math.max(0, Number(targetReview.dislikes || 0) + 1);
+            setReviewVoteState(product.id, reviewIndex, "dislike");
+            saveProductReviews(product.id, reviewsForProduct);
+            renderProductDetail();
+        });
+    });
+
+    document.querySelectorAll(".comment-reply-toggle").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const reviewIndex = Number(button.dataset.reviewIndex);
+            const replyBox = document.querySelector('[data-reply-box="' + reviewIndex + '"]');
+            if (replyBox) {
+                replyBox.classList.toggle("hidden");
+            }
+        });
+    });
+
+    document.querySelectorAll(".reply-submit").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const reviewIndex = Number(button.dataset.reviewIndex);
+            const reviewsForProduct = getSavedProductReviews(product);
+            const targetReview = reviewsForProduct[reviewIndex];
+            const replyInput = document.querySelector('[data-reply-input="' + reviewIndex + '"]');
+
+            if (!targetReview || !replyInput) return;
+
+            const replyText = replyInput.value.trim();
+            if (!replyText) {
+                alert("Please type a reply first.");
+                return;
+            }
+
+            targetReview.replies = targetReview.replies || [];
+            targetReview.replies.push({
+                user: "Fan",
+                avatar: getShopAvatar(),
+                text: replyText
+            });
+
+            getAutomaticReplies(targetReview).forEach(function (automaticReply) {
+                targetReview.replies.push(automaticReply);
+            });
+
+            saveProductReviews(product.id, reviewsForProduct);
+            renderProductDetail();
+        });
+    });
+
+    document.querySelectorAll(".related-product-card").forEach(function (card) {
+        card.addEventListener("click", function (event) {
+            if (event.target && event.target.closest(".related-btn")) {
+                event.stopPropagation();
+            }
+            const relatedId = Number(card.dataset.relatedId);
+            if (relatedId) {
+                window.location.href = "product.html?id=" + relatedId;
+            }
+        });
+    });
+}
+
+function renderStars(score) {
+
+    const value = Math.max(0, Math.min(5, Number(score) || 0));
+    const starString = [];
+
+    for (let i = 1; i <= 5; i++) {
+        if (value >= i) {
+            starString.push("★");
+        } else if (value >= i - 0.5 && value < i) {
+            starString.push("⯨");
+        } else {
+            starString.push("☆");
+        }
+    }
+
+    return starString.join("");
+}
+
+// =====================================================
 // RENDER PRODUCTS
 // =====================================================
 
@@ -542,7 +1669,14 @@ function renderProducts(productList) {
             document.createElement("div");
 
         card.className = "product-card";
+        card.style.cursor = "pointer";
 
+        card.addEventListener("click", function (event) {
+            if (event.target && event.target.closest(".add-btn")) {
+                return;
+            }
+            openProductPage(product.id);
+        });
 
         const image =
             document.createElement("img");
@@ -584,19 +1718,27 @@ function renderProducts(productList) {
                 maximumFractionDigits: 2
             });
 
+        const inventory = getProductInventory(product);
+        scheduleInventoryRefresh(product);
+
+        const stock = document.createElement("p");
+        stock.className = inventory.stock > 0 ? "product-card-stock" : "product-card-stock sold-out";
+        stock.textContent = inventory.stock > 0 ? inventory.stock + " left" : "Sold out";
+
 
         const button =
             document.createElement("button");
 
         button.className = "add-btn";
 
+        button.disabled = inventory.stock === 0;
+
         button.textContent =
-            "Add to Cart 🛒";
+            inventory.stock === 0 ? "Sold out" : "Add to Cart 🛒";
 
-        button.onclick = function () {
-
+        button.onclick = function (event) {
+            event.stopPropagation();
             addToCart(product.id);
-
         };
 
 
@@ -605,6 +1747,8 @@ function renderProducts(productList) {
         card.appendChild(title);
 
         card.appendChild(price);
+
+        card.appendChild(stock);
 
         card.appendChild(button);
 
@@ -636,7 +1780,7 @@ function filterCategory(category) {
 // ADD TO CART
 // =====================================================
 
-function addToCart(id) {
+function addToCart(id, quantityInput) {
 
     if (typeof requireLoginForCart === "function" && !requireLoginForCart()) {
         return;
@@ -651,6 +1795,24 @@ function addToCart(id) {
 
     if (!product) return;
 
+    const quantity =
+        Math.max(1, Number(quantityInput) || 1);
+
+    const availableStock = getProductInventory(product).stock;
+    const existingQuantity = cartList.find(function (item) {
+        return item.id === id;
+    })?.quantity || 0;
+
+    if (availableStock === 0) {
+        alert(product.title + " is sold out. Please wait for the restock.");
+        return;
+    }
+
+    if (existingQuantity + quantity > availableStock) {
+        alert("Only " + Math.max(0, availableStock - existingQuantity) + " of " + product.title + " remain available.");
+        return;
+    }
+
     const existing =
         cartList.find(function (item) {
 
@@ -660,7 +1822,7 @@ function addToCart(id) {
 
     if (existing) {
 
-        existing.quantity++;
+        existing.quantity += quantity;
 
     } else {
 
@@ -672,7 +1834,7 @@ function addToCart(id) {
 
             price: product.price,
 
-            quantity: 1
+            quantity: quantity
 
         });
 
@@ -691,6 +1853,8 @@ function addToCart(id) {
 
     alert(
         "🛒 Added " +
+        quantity +
+        " of " +
         product.title +
         " to your cart!"
     );
@@ -792,6 +1956,15 @@ function updateQuantity(id, change) {
         });
 
     if (!item) return;
+
+    if (change > 0) {
+        const product = products.find(function (candidate) { return candidate.id === id; });
+        const availableStock = product ? getProductInventory(product).stock : 0;
+        if (item.quantity + change > availableStock) {
+            alert("Only " + Math.max(0, availableStock - item.quantity) + " more are available.");
+            return;
+        }
+    }
 
     item.quantity += change;
 
@@ -1057,8 +2230,35 @@ function triggerCheckoutAlert() {
         return;
     }
 
+    const unavailableItem = cartList.find(function (item) {
+        const product = products.find(function (candidate) { return candidate.id === item.id; });
+        return !product || item.quantity > getProductInventory(product).stock;
+    });
+
+    if (unavailableItem) {
+        alert("Some items in your cart are no longer available in that quantity. Please update your cart.");
+        renderCartItems();
+        return;
+    }
+
     const orderNumber =
         "MADO-" + Math.floor(100000 + Math.random() * 900000);
+
+    const purchasedQuantity = cartList.reduce(function (sum, item) {
+        return sum + Math.max(0, Number(item.quantity) || 0);
+    }, 0);
+
+    cartList.forEach(function (item) {
+        updateProductInventory(item.id, item.quantity);
+    });
+    const previousPurchaseCount = getLifetimePurchaseCount();
+    const updatedPurchaseCount = previousPurchaseCount + purchasedQuantity;
+    setLifetimePurchaseCount(updatedPurchaseCount);
+
+    if (previousPurchaseCount < 200 && updatedPurchaseCount >= 200 && !sessionStorage.getItem(shopVerifiedNotificationKey)) {
+        sessionStorage.setItem(shopVerifiedNotificationKey, "true");
+        showShopNotification(translateShop("congratulations"));
+    }
 
     localStorage.setItem("lastOrderNumber", orderNumber);
     localStorage.setItem("orderStatus", "Getting order ready");
