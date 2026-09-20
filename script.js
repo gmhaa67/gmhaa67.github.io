@@ -531,7 +531,7 @@ function getProductInventory(product) {
     }
 
     item.maxStock = maxStock;
-    item.stock = Math.max(0, Math.min(maxStock, Number(item.stock) || 0));
+    item.stock = Math.floor(Math.max(0, Math.min(maxStock, Number(item.stock) || 0)));
 
     if (item.stock === 0 && item.restockAt && Date.now() >= Number(item.restockAt)) {
         item.stock = Math.floor(Math.random() * maxStock) + 1;
@@ -549,7 +549,7 @@ function updateProductInventory(productId, quantity) {
     if (!product) return;
 
     const item = getProductInventory(product);
-    item.stock = Math.max(0, item.stock - quantity);
+    item.stock = Math.floor(Math.max(0, item.stock - Math.max(1, Number(quantity) || 1)));
     if (item.stock === 0) {
         item.restockAt = Date.now() + restockDelay;
     }
@@ -565,7 +565,7 @@ function restoreProductInventory(productId, quantity) {
     if (!product) return;
 
     const item = getProductInventory(product);
-    item.stock = Math.min(item.maxStock, item.stock + Math.max(0, Number(quantity) || 0));
+    item.stock = Math.floor(Math.min(item.maxStock, item.stock + Math.max(0, Number(quantity) || 0)));
     item.restockAt = 0;
     inventory[String(productId)] = item;
     saveInventoryState(inventory);
@@ -1821,8 +1821,8 @@ function addToCart(id, quantityInput) {
         return;
     }
 
-    if (existingQuantity + quantity > availableStock) {
-        alert("Only " + Math.max(0, availableStock - existingQuantity) + " of " + product.title + " remain available.");
+    if (quantity > availableStock) {
+        alert("Only " + availableStock + " of " + product.title + " remain available.");
         return;
     }
 
