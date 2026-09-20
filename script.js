@@ -436,11 +436,9 @@ const products = [
     category: "football",
     img: "futbal.png",
     fallbacks: [
+        "futbal.png",
         "futbal.png.png",
-        "futbal.png.jpg",
-        "futbal.jpg",
-        "football.png",
-        "football.jpg"
+        "football.png"
     ]
 },
 {
@@ -450,10 +448,8 @@ const products = [
     category: "football",
     img: "goalkeeper.png",
     fallbacks: [
-        "goalkeeper.png.png",
-        "goalkeeper.png.jpg",
-        "goalkeeper.jpg",
         "goalkeeper.png",
+        "goalkeeper.png.png",
         "goalkeeper.jpg"
     ]
 }
@@ -464,10 +460,8 @@ const products = [
     category: "football",
     img: "depends.png",
     fallbacks: [
-        "depends.png.png",
-        "depends.png.jpg",
-        "depends.jpg",
         "depends.png",
+        "depends.png.png",
         "depends.jpg"
     ]
 }
@@ -478,10 +472,8 @@ const products = [
     category: "football",
     img: "dependss.png",
     fallbacks: [
-        "dependss.png.png",
-        "dependss.png.jpg",
-        "dependss.jpg",
         "dependss.png",
+        "dependss.png.png",
         "dependss.jpg"
     ]
 }
