@@ -157,7 +157,7 @@ const products = [
     ]
 },
 {
-    id: 18,
+    id: 42,
     title: "youtube premium for 12 months/1 year",
     price: 70,
     category: "gift cards",
@@ -474,6 +474,7 @@ const products = [
     fallbacks: [
         "dependss.png",
         "dependss.png.png",
+        "dependss.png.jpg",
         "dependss.jpg"
     ]
 }

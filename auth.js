@@ -6,9 +6,6 @@
 
 let currentUser = null;
 
-const SUPABASE_URL = "https://obmqizlwaoknqcbjpkex.supabase.co";
-const SUPABASE_KEY = "sb_publishable_J9ssrbXkA2Jp2I9NlvPzsQ_wjkfFhv4";
-
 
 // ============================================================
 // START
@@ -21,8 +18,6 @@ document.addEventListener(
         loadCurrentUser();
 
         applyAdminSiteSettings();
-
-        loadSharedAdminSettings();
 
         createAuthScreen();
 
@@ -940,65 +935,6 @@ function saveAdminSettings(settings) {
 }
 
 
-async function loadSharedAdminSettings() {
-
-    try {
-        const response = await fetch(
-            SUPABASE_URL + "/rest/v1/site_settings?id=eq.1&select=settings",
-            {
-                headers: {
-                    apikey: SUPABASE_KEY,
-                    Authorization: "Bearer " + SUPABASE_KEY
-                }
-            }
-        );
-
-        if (!response.ok) return;
-
-        const rows = await response.json();
-        const sharedSettings = rows[0] && rows[0].settings;
-
-        if (sharedSettings && typeof sharedSettings === "object") {
-            saveAdminSettings(sharedSettings);
-            applyAdminSiteSettings();
-            updateAuthArea();
-        }
-    } catch (error) {
-        console.warn("Shared settings are unavailable.", error);
-    }
-}
-
-
-async function saveSharedAdminSettings(settings) {
-
-    try {
-        const response = await fetch(SUPABASE_URL + "/rest/v1/site_settings", {
-            method: "POST",
-            headers: {
-                apikey: SUPABASE_KEY,
-                Authorization: "Bearer " + SUPABASE_KEY,
-                "Content-Type": "application/json",
-                Prefer: "resolution=merge-duplicates,return=minimal"
-            },
-            body: JSON.stringify({
-                id: 1,
-                settings: settings,
-                updated_at: new Date().toISOString()
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error("Supabase returned " + response.status);
-        }
-
-        return true;
-    } catch (error) {
-        console.warn("Shared settings could not be saved.", error);
-        return false;
-    }
-}
-
-
 function applyAdminSiteSettings() {
 
     const settings = getAdminSettings();
@@ -1114,6 +1050,9 @@ function renderAdminPanel(panel) {
     const productRows = typeof products === "undefined"
         ? "<p>Product controls are unavailable on this page.</p>"
         : products.map(function (product, index) {
+            const inventory = typeof getProductInventory === "function"
+                ? getProductInventory(product)
+                : { stock: 0, maxStock: 20 };
             return `
                 <label class="admin-product-row">
                     <img
@@ -1133,6 +1072,22 @@ function renderAdminPanel(panel) {
                         step="0.01"
                         value="${product.price}"
                         data-product-index="${index}"
+                    >
+                    <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="${inventory.stock}"
+                        data-product-stock-index="${index}"
+                        placeholder="Stock"
+                    >
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value="${inventory.maxStock}"
+                        data-product-max-stock-index="${index}"
+                        placeholder="Max stock"
                     >
                     <input
                         type="text"
@@ -1215,8 +1170,30 @@ function renderAdminPanel(panel) {
                 <label>Cards <input type="color" id="admin-card-color" value="${getAdminSettings().cardColor || "#ffffff"}" oninput="previewAdminColors()"></label>
             </div>
 
-            <h3>Products, prices and photos</h3>
+            <h3>Products, prices, stock and photos</h3>
+            <p class="admin-note">Set current stock and the maximum stock for each item.</p>
             <div class="admin-product-list">${productRows}</div>
+
+            <h3>Review moderation</h3>
+            <p class="admin-note">Edit ratings or comments, or remove reviews from the live product pages.</p>
+            <div class="admin-review-list">
+                ${typeof products === "undefined" ? "" : products.map(function (product) {
+                    const reviews = typeof getSavedProductReviews === "function" ? getSavedProductReviews(product) : [];
+                    return reviews.map(function (review, reviewIndex) {
+                        return `
+                            <div class="admin-review-row">
+                                <strong>${escapeAdminText(product.title)}</strong>
+                                <span>${escapeAdminText(review.user || "Guest")}</span>
+                                <select data-review-rating-product="${product.id}" data-review-rating-index="${reviewIndex}">
+                                    ${[1, 2, 3, 4, 5].map(function (rating) { return `<option value="${rating}" ${Number(review.rating) === rating ? "selected" : ""}>${rating}/5</option>`; }).join("")}
+                                </select>
+                                <textarea data-review-comment-product="${product.id}" data-review-comment-index="${reviewIndex}">${escapeAdminText(review.comment || "")}</textarea>
+                                <label class="admin-review-delete"><input type="checkbox" data-review-delete-product="${product.id}" data-review-delete-index="${reviewIndex}"> Remove</label>
+                            </div>
+                        `;
+                    }).join("");
+                }).join("") || "<p class=\"admin-note\">No reviews to moderate yet.</p>"}
+            </div>
 
             <button
                 class="admin-change-colors-btn"
@@ -1349,6 +1326,45 @@ function applyAdminChanges() {
             if (product && fallbacks.length) product.fallbacks = fallbacks;
         });
 
+        if (typeof getInventoryState === "function" && typeof saveInventoryState === "function") {
+            const inventory = getInventoryState();
+            document.querySelectorAll("[data-product-stock-index]").forEach(function (input) {
+                const index = Number(input.dataset.productStockIndex);
+                const product = products[index];
+                const maxInput = document.querySelector(`[data-product-max-stock-index="${index}"]`);
+                if (!product || !maxInput) return;
+                const maxStock = Math.max(1, Math.floor(Number(maxInput.value) || 1));
+                const stock = Math.max(0, Math.min(maxStock, Math.floor(Number(input.value) || 0)));
+                const item = getProductInventory(product);
+                item.maxStock = maxStock;
+                item.stock = stock;
+                item.restockAt = 0;
+                inventory[String(product.id)] = item;
+            });
+            saveInventoryState(inventory);
+        }
+
+        if (typeof saveProductReviews === "function") {
+            products.forEach(function (product) {
+                const reviews = getSavedProductReviews(product);
+                const updatedReviews = reviews.map(function (review, reviewIndex) {
+                    const deleteInput = document.querySelector(`[data-review-delete-product="${product.id}"][data-review-delete-index="${reviewIndex}"]`);
+                    if (deleteInput?.checked) return null;
+                    const ratingInput = document.querySelector(`[data-review-rating-product="${product.id}"][data-review-rating-index="${reviewIndex}"]`);
+                    const commentInput = document.querySelector(`[data-review-comment-product="${product.id}"][data-review-comment-index="${reviewIndex}"]`);
+                    return Object.assign({}, review, {
+                        rating: Number(ratingInput?.value || review.rating),
+                        comment: commentInput?.value.trim() || review.comment
+                    });
+                }).filter(Boolean);
+                if (updatedReviews.length !== reviews.length || updatedReviews.some(function (review, index) {
+                    return review.rating !== reviews[index]?.rating || review.comment !== reviews[index]?.comment;
+                })) {
+                    saveProductReviews(product.id, updatedReviews);
+                }
+            });
+        }
+
         settings.products = products.map(function (product) {
             return {
                 title: product.title,
@@ -1361,6 +1377,10 @@ function applyAdminChanges() {
 
         if (typeof renderProducts === "function") {
             renderProducts(products);
+        }
+
+        if (typeof renderProductDetail === "function" && document.getElementById("product-detail")) {
+            renderProductDetail();
         }
     }
 
@@ -1409,11 +1429,7 @@ function applyAdminChanges() {
     }
 
     saveAdminSettings(settings);
-    saveSharedAdminSettings(settings).then(function (saved) {
-        alert(saved
-            ? "Admin changes saved for everyone."
-            : "Saved on this device, but the shared database is not ready yet.");
-    });
+    alert("Admin changes saved in this browser.");
 }
 
 

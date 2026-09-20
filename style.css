@@ -1873,7 +1873,7 @@ nav a.active-link {
 
     display: grid;
 
-    grid-template-columns: 48px minmax(0, 1.3fr) 105px minmax(0, 0.75fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-columns: 48px minmax(0, 1.3fr) 105px 85px 85px minmax(0, 0.75fr) minmax(0, 1fr) minmax(0, 1.3fr);
 
     align-items: center;
 
@@ -1898,6 +1898,43 @@ nav a.active-link {
 
     color: var(--text-color);
 
+}
+
+.admin-review-list {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-review-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) 90px 70px minmax(180px, 2fr) 75px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    font-size: 13px;
+}
+
+.admin-review-row textarea,
+.admin-review-row select {
+    width: 100%;
+    padding: 7px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--card-bg);
+    color: var(--text-color);
+}
+
+.admin-review-row textarea {
+    min-height: 42px;
+    resize: vertical;
+}
+
+.admin-review-delete {
+    color: #c0392b;
+    font-weight: 700;
 }
 
 
@@ -2057,6 +2094,14 @@ nav a.active-link {
     }
 
     .admin-product-row input:nth-child(n + 4) {
+        grid-column: 1 / -1;
+    }
+
+    .admin-review-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .admin-review-row textarea {
         grid-column: 1 / -1;
     }
 
