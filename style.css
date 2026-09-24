@@ -3255,3 +3255,8 @@ header {
 
 .wallet-message.is-success { color: #168a55; }
 .wallet-message.is-error { color: #c0392b; }
+
+.donation-form {
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}

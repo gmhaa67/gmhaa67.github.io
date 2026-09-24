@@ -753,6 +753,10 @@ function openWalletPanel() {
             <label for="wallet-exchange-input">Exchange credits for money</label>
             <div class="wallet-input-row"><input id="wallet-exchange-input" type="number" min="1" step="1" placeholder="Credits to exchange"><button onclick="exchangeWalletCredits()">Exchange</button></div>
         </div>
+        <div class="wallet-form donation-form">
+            <label for="wallet-donation-input">Donate money</label>
+            <div class="wallet-input-row"><input id="wallet-donation-input" type="number" min="1" step="0.01" placeholder="Amount to donate"><button onclick="donateWalletMoney()">Donate</button></div>
+        </div>
     `;
     document.body.appendChild(panel);
     updateWalletDisplay();
@@ -807,6 +811,29 @@ function exchangeWalletCredits() {
     saveWalletState(wallet);
     if (message) {
         message.textContent = "Exchanged " + formatWalletNumber(amount) + " credits for $" + formatWalletNumber(amount * creditValue) + ".";
+        message.className = "wallet-message is-success";
+    }
+    if (input) input.value = "";
+}
+
+function donateWalletMoney() {
+    const input = document.getElementById("wallet-donation-input");
+    const message = document.getElementById("wallet-message");
+    const amount = Math.round(Number(input && input.value) * 100) / 100;
+    const wallet = getWalletState();
+
+    if (!amount || amount < 1 || amount > wallet.money) {
+        if (message) {
+            message.textContent = "Enter an amount up to your available money.";
+            message.className = "wallet-message is-error";
+        }
+        return;
+    }
+
+    wallet.money -= amount;
+    saveWalletState(wallet);
+    if (message) {
+        message.textContent = "Thanks for your kindness! You donated $" + formatWalletNumber(amount) + ".";
         message.className = "wallet-message is-success";
     }
     if (input) input.value = "";
