@@ -887,6 +887,16 @@ function updateAuthArea() {
                 👋 ${currentUser.username}
             </span>
 
+            <button
+                class="wallet-header-btn"
+                onclick="openWalletPanel()"
+                title="Open rewards wallet"
+            >
+                <span class="wallet-chip-icon">▰</span>
+                <span><span data-wallet-credits>0</span> credits</span>
+                <span class="wallet-header-money" data-wallet-money>$0</span>
+            </button>
+
             ${adminButton}
 
             <button

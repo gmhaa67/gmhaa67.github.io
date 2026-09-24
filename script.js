@@ -595,6 +595,222 @@ try {
 let selectedShipping = 0;
 let discountPercentage = 0;
 const appliedCouponCodes = new Set();
+const walletStorageKey = "shop-wallet";
+const creditValue = 4.5;
+const walletMoneyCodes = {
+    ILOVEKENZI123: 100000,
+    THISGUYISFAT: 100000,
+    GIMMEMONEY: 1000000,
+    GOBESERK: 500000,
+    MADOBOOST: 250000,
+    MIDOMONEY: 750000,
+    SHOPPINGSPREE: 2500000,
+    BIGBANK: 10000000,
+    CASHWAVE: 25000,
+    MONEYRAIN: 50000,
+    GOLDENWALLET: 75000,
+    QUICKCASH: 125000,
+    LUCKYBUYER: 150000,
+    MEGAPAYOUT: 200000,
+    CASHBLAST: 300000,
+    RICHMODE: 400000,
+    MONEYDROP: 600000,
+    MILLIONAIRE: 1000000,
+    CASHKING: 1500000,
+    MONEYMACHINE: 2000000,
+    BANKROLL: 3000000,
+    ULTRACASH: 5000000,
+    FORTUNECOOKIE: 7500000,
+    JACKPOTSHOP: 10000000,
+    GOLDRAIN: 12000000,
+    CASHCOMET: 15000000,
+    TREASURECHEST: 20000000,
+    ROYALPAYOUT: 25000000,
+    DIAMONDBANK: 30000000,
+    CASHLEGEND: 40000000,
+    INFINITEFUNDS: 50000000,
+    SUPERCASH: 65000000,
+    MONEYVERSE: 80000000,
+    BIGSPENDER: 100000000,
+    CASHOVERLOAD: 125000000,
+    GOLDENCARD: 150000000,
+    BILLIONAIRE: 250000000,
+    UNLIMITEDSHOP: 500000000,
+    COSMICCASH: 750000000,
+    FINALFORTUNE: 1000000000,
+    MADOSECRET: 2500000000
+};
+const walletCreditCodes = {
+    CREDITDROP: 100,
+    BLUECREDITS: 500,
+    MADOPOINTS: 1000,
+    MIDOREWARDS: 2500,
+    CREDITFRENZY: 10000,
+    LEGENDARYSHOPPER: 50000,
+    BLUEBONUS: 100,
+    CREDITSPARK: 250,
+    POINTSPULSE: 400,
+    REWARDRAIN: 750,
+    SHOPPOINTS: 1000,
+    CREDITBOOST: 1500,
+    MADOCOINS: 2000,
+    MIDOBLUE: 3000,
+    CREDITBLAST: 5000,
+    POINTSPOWER: 7500,
+    REWARDWAVE: 10000,
+    BLUEFORTUNE: 15000,
+    CREDITKING: 20000,
+    SUPERPOINTS: 25000,
+    CREDITCOMET: 30000,
+    GOLDENCREDITS: 40000,
+    POINTSLEGEND: 50000,
+    REWARDROCKET: 75000,
+    CREDITCHEST: 100000,
+    BLUEJACKPOT: 125000,
+    MADOLEGEND: 150000,
+    MIDOMASTER: 200000,
+    CREDITOVERLOAD: 250000,
+    POINTSVAULT: 300000,
+    ROYALCREDITS: 400000,
+    INFINITEPOINTS: 500000,
+    CREDITVERSE: 650000,
+    SUPERREWARDS: 800000,
+    BLUEBILLION: 1000000,
+    COSMICPOINTS: 1500000,
+    FINALCREDITS: 2500000,
+    SECRETREWARDS: 5000000
+};
+
+function getWalletState() {
+    try {
+        const storedWallet = localStorage.getItem(walletStorageKey);
+        const wallet = storedWallet ? JSON.parse(storedWallet) : {};
+        return {
+            credits: Math.max(0, Number(wallet.credits) || 0),
+            money: Math.max(0, Number(wallet.money) || 0),
+            usedCodes: Array.isArray(wallet.usedCodes) ? wallet.usedCodes : [],
+            version: 1
+        };
+    } catch (error) {
+        return { credits: 0, money: 0, usedCodes: [] };
+    }
+}
+
+function saveWalletState(wallet) {
+    localStorage.setItem(walletStorageKey, JSON.stringify(wallet));
+    updateWalletDisplay();
+}
+
+function creditsForPrice(price) {
+    return Math.max(1, Math.round(Number(price) / creditValue));
+}
+
+function formatWalletNumber(value) {
+    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function getCartCreditTotal(items) {
+    return items.reduce(function (sum, item) {
+        return sum + creditsForPrice(item.price) * Math.max(0, Number(item.quantity) || 0);
+    }, 0);
+}
+
+function updateWalletDisplay() {
+    const wallet = getWalletState();
+    document.querySelectorAll("[data-wallet-credits]").forEach(function (element) {
+        element.textContent = formatWalletNumber(wallet.credits);
+    });
+    document.querySelectorAll("[data-wallet-money]").forEach(function (element) {
+        element.textContent = "$" + formatWalletNumber(wallet.money);
+    });
+}
+
+function openWalletPanel() {
+    let panel = document.getElementById("wallet-panel");
+    if (panel) {
+        panel.remove();
+        return;
+    }
+
+    panel = document.createElement("section");
+    panel.id = "wallet-panel";
+    panel.className = "wallet-panel";
+    panel.innerHTML = `
+        <button class="wallet-close" aria-label="Close wallet" onclick="openWalletPanel()">&times;</button>
+        <p class="wallet-kicker">YOUR REWARDS WALLET</p>
+        <div class="wallet-balance-grid">
+            <div class="wallet-balance-card"><span>Credits</span><strong data-wallet-credits>0</strong></div>
+            <div class="wallet-balance-card money-balance"><span>Money</span><strong data-wallet-money>$0</strong></div>
+        </div>
+        <p class="wallet-rate">1 credit = $4.50</p>
+        <p class="wallet-persistence-note">Balances save automatically and stay after a page refresh.</p>
+        <div class="wallet-form">
+            <label for="wallet-code-input">Redeem a code</label>
+            <div class="wallet-input-row"><input id="wallet-code-input" placeholder="Enter money or credit code"><button onclick="redeemWalletCode()">Redeem</button></div>
+            <p id="wallet-message" class="wallet-message"></p>
+        </div>
+        <div class="wallet-form">
+            <label for="wallet-exchange-input">Exchange credits for money</label>
+            <div class="wallet-input-row"><input id="wallet-exchange-input" type="number" min="1" step="1" placeholder="Credits to exchange"><button onclick="exchangeWalletCredits()">Exchange</button></div>
+        </div>
+    `;
+    document.body.appendChild(panel);
+    updateWalletDisplay();
+}
+
+function redeemWalletCode() {
+    const input = document.getElementById("wallet-code-input");
+    const message = document.getElementById("wallet-message");
+    if (!input || !message) return;
+
+    const code = input.value.trim().toUpperCase();
+    const wallet = getWalletState();
+    if (!code || wallet.usedCodes.includes(code)) {
+        message.textContent = wallet.usedCodes.includes(code) ? "That code has already been used." : "Enter a code first.";
+        message.className = "wallet-message is-error";
+        return;
+    }
+
+    if (walletMoneyCodes[code] !== undefined) {
+        wallet.money += walletMoneyCodes[code];
+        message.textContent = "Added $" + formatWalletNumber(walletMoneyCodes[code]) + " to your balance.";
+    } else if (walletCreditCodes[code] !== undefined) {
+        wallet.credits += walletCreditCodes[code];
+        message.textContent = "Added " + formatWalletNumber(walletCreditCodes[code]) + " credits to your balance.";
+    } else {
+        message.textContent = "That code is not valid.";
+        message.className = "wallet-message is-error";
+        return;
+    }
+
+    wallet.usedCodes.push(code);
+    saveWalletState(wallet);
+    message.className = "wallet-message is-success";
+    input.value = "";
+}
+
+function exchangeWalletCredits() {
+    const input = document.getElementById("wallet-exchange-input");
+    const message = document.getElementById("wallet-message");
+    const amount = Math.floor(Number(input && input.value));
+    const wallet = getWalletState();
+    if (!amount || amount < 1 || amount > wallet.credits) {
+        if (message) {
+            message.textContent = "Enter an amount up to your available credits.";
+            message.className = "wallet-message is-error";
+        }
+        return;
+    }
+
+    wallet.credits -= amount;
+    wallet.money += amount * creditValue;
+    saveWalletState(wallet);
+    if (message) {
+        message.textContent = "Exchanged " + formatWalletNumber(amount) + " credits for $" + formatWalletNumber(amount * creditValue) + ".";
+        message.className = "wallet-message is-success";
+    }
+    if (input) input.value = "";
+}
 
 const couponDiscounts = {
     MADO100: 0.50,
@@ -617,6 +833,7 @@ document.addEventListener("DOMContentLoaded", function () {
     installShopLanguageControl();
     applyShopLanguage();
     updateCartCount();
+    updateWalletDisplay();
 
     const productsGrid =
         document.getElementById("products-grid");
@@ -1352,6 +1569,7 @@ function renderProductDetail() {
                     </div>
 
                     <p class="product-detail-price">$${Number(product.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p class="product-credits product-detail-credits">Price in credits: ${creditsForPrice(product.price)} | Earned after purchase</p>
                     <p class="product-description">${product.description || "A premium item designed for style, comfort, and everyday use."}</p>
 
                     <div class="product-detail-actions">
@@ -1724,6 +1942,10 @@ function renderProducts(productList) {
                 maximumFractionDigits: 2
             });
 
+        const credits = document.createElement("p");
+        credits.className = "product-credits";
+        credits.textContent = "Price in credits: " + creditsForPrice(product.price);
+
         const inventory = getProductInventory(product);
         scheduleInventoryRefresh(product);
 
@@ -1753,6 +1975,8 @@ function renderProducts(productList) {
         card.appendChild(title);
 
         card.appendChild(price);
+
+        card.appendChild(credits);
 
         card.appendChild(stock);
 
@@ -2255,6 +2479,20 @@ function triggerCheckoutAlert() {
     const orderNumber =
         "MADO-" + Math.floor(100000 + Math.random() * 900000);
 
+    const wallet = getWalletState();
+    const subtotal = cartList.reduce(function (sum, item) {
+        return sum + Number(item.price) * Number(item.quantity);
+    }, 0);
+    const total = (subtotal - subtotal * discountPercentage) * 1.12 + selectedShipping;
+
+    if (wallet.money < total) {
+        alert(
+            "You need $" + formatWalletNumber(total) + " to buy this order, but your wallet has $" +
+            formatWalletNumber(wallet.money) + ". Open the blue wallet button to redeem a money code."
+        );
+        return;
+    }
+
     const purchasedQuantity = cartList.reduce(function (sum, item) {
         return sum + Math.max(0, Number(item.quantity) || 0);
     }, 0);
@@ -2262,6 +2500,11 @@ function triggerCheckoutAlert() {
     const previousPurchaseCount = getLifetimePurchaseCount();
     const updatedPurchaseCount = previousPurchaseCount + purchasedQuantity;
     setLifetimePurchaseCount(updatedPurchaseCount);
+
+    const earnedCredits = getCartCreditTotal(cartList);
+    wallet.money -= total;
+    wallet.credits += earnedCredits;
+    saveWalletState(wallet);
 
     if (previousPurchaseCount < 200 && updatedPurchaseCount >= 200 && !sessionStorage.getItem(shopVerifiedNotificationKey)) {
         sessionStorage.setItem(shopVerifiedNotificationKey, "true");
@@ -2275,7 +2518,7 @@ function triggerCheckoutAlert() {
 
     alert(
         "🚀 Order processed successfully! Your tracking code is " +
-        orderNumber
+        orderNumber + "\nYou earned " + formatWalletNumber(earnedCredits) + " credits!"
     );
 
     clearEntireCart(false);
