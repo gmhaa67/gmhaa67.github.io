@@ -597,6 +597,14 @@ let discountPercentage = 0;
 const appliedCouponCodes = new Set();
 const walletStorageKey = "shop-wallet";
 const creditValue = 4.5;
+const maxWheelSpins = 300;
+const wheelSpinInterval = 5 * 60 * 1000;
+const wheelSpinCodes = {
+    KENZIISMYFUTUREWIFE123: 300,
+    FREESPIN300: 300,
+    LUCKYWHEEL: 25,
+    SPINBOOST: 10
+};
 const walletMoneyCodes = {
     ILOVEKENZI123: 100000,
     THISGUYISFAT: 100000,
@@ -685,14 +693,25 @@ function getWalletState() {
     try {
         const storedWallet = localStorage.getItem(walletStorageKey);
         const wallet = storedWallet ? JSON.parse(storedWallet) : {};
+        let spins = Number.isFinite(Number(wallet.spins)) ? Math.floor(Number(wallet.spins)) : 1;
+        let lastSpinAt = Number(wallet.lastSpinAt) || Date.now();
+        const elapsedIntervals = Math.floor((Date.now() - lastSpinAt) / wheelSpinInterval);
+        if (elapsedIntervals > 0 && spins < maxWheelSpins) {
+            const addedSpins = Math.min(maxWheelSpins - spins, elapsedIntervals);
+            spins += addedSpins;
+            lastSpinAt += addedSpins * wheelSpinInterval;
+        }
+        if (spins >= maxWheelSpins) lastSpinAt = Date.now();
         return {
             credits: Math.max(0, Number(wallet.credits) || 0),
             money: Math.max(0, Number(wallet.money) || 0),
             usedCodes: Array.isArray(wallet.usedCodes) ? wallet.usedCodes : [],
+            spins: Math.max(0, Math.min(maxWheelSpins, spins)),
+            lastSpinAt: lastSpinAt,
             version: 1
         };
     } catch (error) {
-        return { credits: 0, money: 0, usedCodes: [] };
+        return { credits: 0, money: 0, usedCodes: [], spins: 1, lastSpinAt: Date.now(), version: 1 };
     }
 }
 
@@ -723,6 +742,11 @@ function updateWalletDisplay() {
     document.querySelectorAll("[data-wallet-money]").forEach(function (element) {
         element.textContent = "$" + formatWalletNumber(wallet.money);
     });
+    document.querySelectorAll("[data-wheel-spins]").forEach(function (element) {
+        element.textContent = formatWalletNumber(wallet.spins);
+    });
+    const spinButton = document.getElementById("wheel-spin-button");
+    if (spinButton) spinButton.disabled = wallet.spins < 1;
 }
 
 function openWalletPanel() {
@@ -744,6 +768,12 @@ function openWalletPanel() {
         </div>
         <p class="wallet-rate">1 credit = $4.50</p>
         <p class="wallet-persistence-note">Balances save automatically and stay after a page refresh.</p>
+        <div class="wheel-panel">
+            <div class="wheel-heading"><strong>Prize Wheel</strong><span><b data-wheel-spins>1</b> / ${maxWheelSpins} spins</span></div>
+            <p class="wheel-chances">Weights normalized to 100%: Jackpot 3 | 100 credits 89 | 100,000 credits 7 | Lose $300,000 2 | Lose $100 2</p>
+            <button id="wheel-spin-button" class="wheel-spin-button" onclick="spinPrizeWheel()">Spin the wheel</button>
+            <p id="wheel-message" class="wallet-message"></p>
+        </div>
         <div class="wallet-form">
             <label for="wallet-code-input">Redeem a code</label>
             <div class="wallet-input-row"><input id="wallet-code-input" placeholder="Enter money or credit code"><button onclick="redeemWalletCode()">Redeem</button></div>
@@ -781,6 +811,9 @@ function redeemWalletCode() {
     } else if (walletCreditCodes[code] !== undefined) {
         wallet.credits += walletCreditCodes[code];
         message.textContent = "Added " + formatWalletNumber(walletCreditCodes[code]) + " credits to your balance.";
+    } else if (wheelSpinCodes[code] !== undefined) {
+        wallet.spins = Math.min(maxWheelSpins, wallet.spins + wheelSpinCodes[code]);
+        message.textContent = "Added " + formatWalletNumber(wheelSpinCodes[code]) + " wheel spins.";
     } else {
         message.textContent = "That code is not valid.";
         message.className = "wallet-message is-error";
@@ -2652,4 +2685,40 @@ function renderTrackingResult() {
 
 function trackPackage() {
     renderTrackingResult();
+}
+
+function spinPrizeWheel() {
+    const message = document.getElementById("wheel-message");
+    const wallet = getWalletState();
+    if (wallet.spins < 1) {
+        if (message) message.textContent = "No spins left. You get 1 free spin every 5 minutes.";
+        return;
+    }
+
+    wallet.spins -= 1;
+    const roll = Math.random() * 103;
+    let result;
+    if (roll < 3) {
+        wallet.credits += 200000000;
+        wallet.money += 200000000;
+        result = "JACKPOT! You won 200,000,000 credits and $200,000,000!";
+    } else if (roll < 92) {
+        wallet.credits += 100;
+        result = "You won 100 credits!";
+    } else if (roll < 99) {
+        wallet.credits += 100000;
+        result = "You won 100,000 credits!";
+    } else if (roll < 101) {
+        wallet.money -= 300000;
+        result = "You lost $300,000. Your balance can be negative until you earn more money.";
+    } else {
+        wallet.money -= 100;
+        result = "You lost $100. Your balance can be negative until you earn more money.";
+    }
+
+    saveWalletState(wallet);
+    if (message) {
+        message.textContent = result;
+        message.className = "wallet-message " + (roll < 99 ? "is-success" : "is-error");
+    }
 }
