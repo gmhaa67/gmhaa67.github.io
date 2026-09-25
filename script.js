@@ -769,8 +769,8 @@ function redeemWalletCode() {
 
     const code = input.value.trim().toUpperCase();
     const wallet = getWalletState();
-    if (!code || wallet.usedCodes.includes(code)) {
-        message.textContent = wallet.usedCodes.includes(code) ? "That code has already been used." : "Enter a code first.";
+    if (!code) {
+        message.textContent = "Enter a code first.";
         message.className = "wallet-message is-error";
         return;
     }
@@ -787,7 +787,6 @@ function redeemWalletCode() {
         return;
     }
 
-    wallet.usedCodes.push(code);
     saveWalletState(wallet);
     message.className = "wallet-message is-success";
     input.value = "";
